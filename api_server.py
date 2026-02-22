@@ -1241,11 +1241,6 @@ async def create_ppt(request: PPTCreateRequest):
 
     data = request.data
     slides_data = data.get("slides", [])
-    
-    # 2. Check curl_cffi
-    if not globals().get('curl_cffi_installed', False):
-        return JSONResponse(status_code=500, content={"error": "curl_cffi not installed. Please pip install curl_cffi"})
-
 
     prs = Presentation()
 

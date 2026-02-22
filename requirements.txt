@@ -9,3 +9,4 @@ Pillow==10.2.0
 pdfplumber==0.10.4
 python-multipart==0.0.9
 litellm
+python-pptx==0.6.23

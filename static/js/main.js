@@ -1,3 +1,6 @@
+// 全局标记：服务器是否配置了默认 API Key
+window._hasDefaultKey = false;
+
 const NAV_CONFIG = [
     {
         group: null,
@@ -399,8 +402,8 @@ async function adventureAction(actionText) {
     adventureState.messages.push({ role: 'user', content: actionText });
     renderAdventureUI(document.getElementById('content-area'));
 
-    const apiKey = localStorage.getItem('llm_key');
-    if (!apiKey) {
+    const apiKey = document.getElementById('apikey-input').value;
+    if (!apiKey && !window._hasDefaultKey) {
         adventureState.messages.push({ role: 'assistant', content: "⚠️ 请先在左侧菜单「设置」中配置 API Key" });
         renderAdventureUI(document.getElementById('content-area'));
         return;
@@ -423,10 +426,10 @@ async function adventureAction(actionText) {
                 },
                 history: adventureState.history,
                 user_action: actionText,
-                provider: localStorage.getItem('llm_provider'),
-                model: localStorage.getItem('llm_model'),
-                api_key: apiKey,
-                base_url: localStorage.getItem('llm_base_url')
+                provider: document.getElementById('provider-select').value,
+                model: document.getElementById('model-input').value,
+                api_key: apiKey || '',
+                base_url: document.getElementById('baseurl-input').value || null
             })
         });
 
@@ -685,7 +688,7 @@ async function doCreativeGenerate() {
     const resultDiv = document.getElementById('creative-result');
     const apiKey = document.getElementById('apikey-input').value;
 
-    if (!apiKey) { alert("请先配置 API Key"); return; }
+    if (!apiKey && !window._hasDefaultKey) { alert("请先配置 API Key"); return; }
 
     // Gather fields (All potential inputs)
     let fields = {};
@@ -785,7 +788,7 @@ async function doCodeGenerate() {
     const resultDiv = document.getElementById('code-result');
     const apiKey = document.getElementById('apikey-input').value;
 
-    if (!apiKey) { alert("请先配置 API Key"); return; }
+    if (!apiKey && !window._hasDefaultKey) { alert("请先配置 API Key"); return; }
 
     resultDiv.innerHTML = '<span style="color: #9ca3af;">AI 正在思考...</span>';
 
@@ -861,7 +864,7 @@ function renderSystem(container) {
 async function doSystemGenerate() {
     const query = document.getElementById('sys-query').value;
     const apiKey = document.getElementById('apikey-input').value;
-    if (!apiKey) { alert("请先配置 API Key"); return; }
+    if (!apiKey && !window._hasDefaultKey) { alert("请先配置 API Key"); return; }
 
     try {
         const response = await fetch('/api/system/generate_code', {
@@ -1471,6 +1474,8 @@ function loadSettings() {
     fetch('/api/defaults').then(r => r.json()).then(defaults => {
         if (storedProvider === null && defaults.provider) providerSelect.value = defaults.provider;
         if (storedModel === null && defaults.model) modelInput.value = defaults.model;
+        // 缓存默认 Key 状态，供所有功能函数判断
+        window._hasDefaultKey = !!defaults.has_default_key;
         // API Key placeholder 提示
         if (defaults.has_default_key) {
             apiKeyInput.placeholder = "留空则使用内置密钥";
@@ -1714,7 +1719,7 @@ async function doGeneratePPTOutline() {
         statusDiv.innerHTML = '<span style="color: #fbbf24;">请输入主题</span>';
         return;
     }
-    if (!apiKey) {
+    if (!apiKey && !window._hasDefaultKey) {
         statusDiv.innerHTML = '<span style="color: #fbbf24;">请先配置 API Key</span>';
         return;
     }
@@ -2012,7 +2017,7 @@ async function doGenerateMindMap() {
         statusDiv.innerHTML = '<span style="color: #fbbf24;">请输入主题</span>';
         return;
     }
-    if (!apiKey) {
+    if (!apiKey && !window._hasDefaultKey) {
         statusDiv.innerHTML = '<span style="color: #fbbf24;">请先配置 API Key</span>';
         return;
     }
@@ -2147,7 +2152,7 @@ async function doCloneAnalyze(input) {
     const statusDiv = document.getElementById('clone-status');
     const apiKey = document.getElementById('apikey-input').value;
 
-    if (!apiKey) {
+    if (!apiKey && !window._hasDefaultKey) {
         alert("请先配置 API Key");
         return;
     }
@@ -2347,7 +2352,7 @@ async function importLocalFile(path) {
     const statusDiv = document.getElementById('clone-status');
     const apiKey = document.getElementById('apikey-input').value;
 
-    if (!apiKey) {
+    if (!apiKey && !window._hasDefaultKey) {
         alert("请先配置 API Key");
         return;
     }
@@ -2398,7 +2403,7 @@ async function doClipboardImport() {
     const statusDiv = document.getElementById('clone-status');
     const apiKey = document.getElementById('apikey-input').value;
 
-    if (!apiKey) {
+    if (!apiKey && !window._hasDefaultKey) {
         alert("请先配置 API Key");
         return;
     }
@@ -2532,7 +2537,7 @@ async function doExcelProcess() {
 
     if (fileInput.files.length === 0) { alert("请选择文件"); return; }
     if (!instruction.trim()) { alert("请输入处理需求"); return; }
-    if (!apiKey) { alert("请先配置 API Key"); return; }
+    if (!apiKey && !window._hasDefaultKey) { alert("请先配置 API Key"); return; }
 
     const file = fileInput.files[0];
     const formData = new FormData();
