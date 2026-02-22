@@ -1,6 +1,19 @@
 // 全局标记：服务器是否配置了默认 API Key
 window._hasDefaultKey = false;
 
+// 安全解析 JSON 响应，避免空响应导致 "Unexpected end of JSON input"
+async function safeJson(response) {
+    const text = await response.text();
+    if (!text || !text.trim()) {
+        throw new Error(`服务器返回空响应 (HTTP ${response.status})`);
+    }
+    try {
+        return JSON.parse(text);
+    } catch (e) {
+        throw new Error(`服务器返回非JSON内容: ${text.substring(0, 200)}`);
+    }
+}
+
 const NAV_CONFIG = [
     {
         group: null,
@@ -50,9 +63,9 @@ function toggleSidebar() {
     }
 }
 
-// Initialize App
-document.addEventListener('DOMContentLoaded', () => {
-    lucide.createIcons();
+// Initialize App (use 'load' to ensure all deferred scripts are ready)
+window.addEventListener('load', () => {
+    if (typeof lucide !== 'undefined') lucide.createIcons();
     renderSidebar();
     loadPage('home'); // Default page
     loadSettings();
@@ -454,7 +467,7 @@ async function adventureAction(actionText) {
             })
         });
 
-        const res = await response.json();
+        const res = await safeJson(response);
 
         if (!response.ok) {
             let errorMsg = res.detail;
@@ -551,7 +564,7 @@ async function doPdfToExcel() {
             window.URL.revokeObjectURL(url);
             statusDiv.innerHTML = '✅ 转换成功！文件已下载。';
         } else {
-            const err = await response.json();
+            const err = await safeJson(response);
             statusDiv.innerHTML = `❌ 失败: ${err.detail}`;
         }
     } catch (e) {
@@ -591,7 +604,7 @@ async function doImgToExcel() {
             window.URL.revokeObjectURL(url);
             statusDiv.innerHTML = '✅ 转换成功！文件已下载。';
         } else {
-            const err = await response.json();
+            const err = await safeJson(response);
             statusDiv.innerHTML = `❌ 失败: ${err.detail}`;
         }
     } catch (e) {
@@ -899,7 +912,7 @@ async function doSystemGenerate() {
                 base_url: document.getElementById('baseurl-input').value || null
             })
         });
-        const res = await response.json();
+        const res = await safeJson(response);
         document.getElementById('sys-code').value = res.code;
         document.getElementById('sys-code-area').style.display = 'block';
     } catch (e) {
@@ -915,7 +928,7 @@ async function doSystemExecute() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ code: code })
         });
-        const res = await response.json();
+        const res = await safeJson(response);
         const outDiv = document.getElementById('sys-output');
         outDiv.style.display = 'block';
         outDiv.innerText = res.output;
@@ -1362,7 +1375,7 @@ async function fetchSearchResults() {
             })
         });
 
-        const data = await response.json();
+        const data = await safeJson(response);
 
         if (response.ok) {
             // Update Status (Only on page 1)
@@ -1492,7 +1505,7 @@ function loadSettings() {
     document.getElementById('sys-prompt-input').value = localStorage.getItem('llm_sys_prompt') || "";
 
     // 从后端获取默认配置（不含 API Key），仅在用户未保存时使用
-    fetch('/api/defaults').then(r => r.json()).then(defaults => {
+    fetch('/api/defaults').then(r => safeJson(r)).then(defaults => {
         if (storedProvider === null && defaults.provider) providerSelect.value = defaults.provider;
         if (storedModel === null && defaults.model) modelInput.value = defaults.model;
         // 缓存默认 Key 状态，供所有功能函数判断
@@ -1676,7 +1689,7 @@ async function doPdfToWord() {
             window.URL.revokeObjectURL(url);
             statusDiv.innerHTML = '<span style="color: #4ade80;">✅ 转换成功，已自动下载</span>';
         } else {
-            const err = await response.json();
+            const err = await safeJson(response);
             statusDiv.innerHTML = `<span style="color: #ef4444;">转换失败: ${err.detail}</span>`;
         }
     } catch (e) {
@@ -1717,7 +1730,7 @@ async function doImgToPdf() {
             window.URL.revokeObjectURL(url);
             statusDiv.innerHTML = '<span style="color: #4ade80;">✅ 合并成功，已自动下载</span>';
         } else {
-            const err = await response.json();
+            const err = await safeJson(response);
             statusDiv.innerHTML = `<span style="color: #ef4444;">操作失败: ${err.detail}</span>`;
         }
     } catch (e) {
@@ -1761,7 +1774,7 @@ async function doGeneratePPTOutline() {
             })
         });
 
-        const res = await response.json();
+        const res = await safeJson(response);
 
         if (response.ok) {
             statusDiv.innerHTML = '<span style="color: #4ade80;">✅ 大纲生成成功，请确认内容</span>';
@@ -1802,7 +1815,7 @@ async function doCreatePPT() {
             window.URL.revokeObjectURL(url);
             statusDiv.innerHTML = '<span style="color: #4ade80;">✅ PPT 下载成功！</span>';
         } else {
-            const err = await response.json();
+            const err = await safeJson(response);
             statusDiv.innerHTML = `<span style="color: #ef4444;">生成文件失败: ${err.detail}</span>`;
         }
     } catch (e) {
@@ -1831,7 +1844,7 @@ async function doUploadTable() {
             method: 'POST',
             body: formData
         });
-        const res = await response.json();
+        const res = await safeJson(response);
 
         if (response.ok) {
             vizData = res;
@@ -2061,7 +2074,7 @@ async function doGenerateMindMap() {
             })
         });
 
-        const res = await response.json();
+        const res = await safeJson(response);
 
         if (response.ok) {
             statusDiv.innerHTML = '<span style="color: #4ade80;">✅ 生成成功</span>';
@@ -2194,7 +2207,7 @@ async function doCloneAnalyze(input) {
             body: formData
         });
 
-        const data = await response.json();
+        const data = await safeJson(response);
 
         if (response.ok) {
             cloneState.systemPrompt = data.system_prompt;
@@ -2346,7 +2359,7 @@ async function doLocalScan() {
 
     try {
         const response = await fetch('/api/persona/local_scan');
-        const data = await response.json();
+        const data = await safeJson(response);
 
         if (data.files && data.files.length > 0) {
             statusDiv.innerHTML = `✅ 扫描完成，发现 ${data.files.length} 个可能的记录文件`;
@@ -2394,7 +2407,7 @@ async function importLocalFile(path) {
             body: formData
         });
 
-        const data = await response.json();
+        const data = await safeJson(response);
 
         if (response.ok) {
             cloneState.systemPrompt = data.system_prompt;
@@ -2445,7 +2458,7 @@ async function doClipboardImport() {
             body: formData
         });
 
-        const data = await response.json();
+        const data = await safeJson(response);
 
         if (response.ok) {
             cloneState.systemPrompt = data.system_prompt;
@@ -2590,7 +2603,7 @@ async function doExcelProcess() {
             window.URL.revokeObjectURL(url);
             statusDiv.innerHTML = '✅ 处理成功！文件已下载。';
         } else {
-            const err = await response.json();
+            const err = await safeJson(response);
             statusDiv.innerHTML = `<div style="color: #fca5a5; background: rgba(127, 29, 29, 0.2); padding: 1rem; border-radius: 0.5rem; white-space: pre-wrap;">❌ 失败: ${err.detail}</div>`;
         }
     } catch (e) {

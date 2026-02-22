@@ -665,7 +665,7 @@ async def generate_creative(request: CreativeRequest):
                     csv_content = csv_content.split("```")[1].split("```")[0].strip()
                 
                 # Convert to Excel
-                df = pd.read_csv(io.StringIO(csv_content))
+                df = pd.read_csv(io.StringIO(csv_content), on_bad_lines='warn', sep=None, engine='python')
                 
                 with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
                     tmp_path = tmp.name
