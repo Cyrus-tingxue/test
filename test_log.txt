@@ -1,9 +1,0 @@
-test_img_to_excel (__main__.TestConversionEndpoints.test_img_to_excel) ... ok
-test_img_to_pdf (__main__.TestConversionEndpoints.test_img_to_pdf) ... ok
-test_pdf_to_excel (__main__.TestConversionEndpoints.test_pdf_to_excel) ... ok
-test_pdf_to_word (__main__.TestConversionEndpoints.test_pdf_to_word) ... ok
-
-----------------------------------------------------------------------
-Ran 4 tests in 2.694s
-
-OK
