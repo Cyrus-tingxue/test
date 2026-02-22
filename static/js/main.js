@@ -36,6 +36,20 @@ const NAV_CONFIG = [
     }
 ];
 
+// Toggle Sidebar (mobile)
+function toggleSidebar() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebar-overlay');
+    const isOpen = sidebar.classList.toggle('sidebar-open');
+    if (isOpen) {
+        overlay.style.display = 'block';
+        requestAnimationFrame(() => overlay.classList.add('active'));
+    } else {
+        overlay.classList.remove('active');
+        setTimeout(() => { overlay.style.display = 'none'; }, 300);
+    }
+}
+
 // Initialize App
 document.addEventListener('DOMContentLoaded', () => {
     lucide.createIcons();
@@ -62,7 +76,14 @@ function renderSidebar() {
             btn.className = 'nav-item';
             btn.dataset.key = item.key;
             btn.innerHTML = `<i data-lucide="${item.icon}"></i> ${item.label}`;
-            btn.onclick = () => loadPage(item.key);
+            btn.onclick = () => {
+                loadPage(item.key);
+                // Auto-close sidebar on mobile
+                if (window.innerWidth <= 768) {
+                    const sidebar = document.getElementById('sidebar');
+                    if (sidebar.classList.contains('sidebar-open')) toggleSidebar();
+                }
+            };
             navMenu.appendChild(btn);
         });
     });
@@ -294,7 +315,7 @@ function renderScenarioSelect(container) {
             <h2 style="margin-bottom: 0.5rem;">🌌 选择你的平行宇宙</h2>
             <p style="color: var(--text-muted); margin-bottom: 2rem;">AI 实时生成的无限文字冒险。每一次选择，都是全新的历史。</p>
             
-            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 1.5rem;">
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
                 ${SCENARIOS.map(s => `
                     <div onclick="startAdventure('${s.id}')" style="background: ${s.bg}; border: 1px solid var(--border); border-radius: 1rem; padding: 1.5rem; cursor: pointer; transition: transform 0.2s; text-align: left; position: relative; overflow: hidden;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='none'">
                         <div style="font-size: 3rem; margin-bottom: 1rem;">${s.icon}</div>
@@ -335,7 +356,7 @@ function renderAdventureUI(container) {
     container.innerHTML = `
         <div style="display: grid; grid-template-rows: auto 1fr auto; height: calc(100vh - 140px); gap: 1rem;">
             <!-- Status Bar -->
-            <div class="card" style="padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; background: rgba(30, 41, 59, 0.8); backdrop-filter: blur(10px);">
+            <div class="card adv-status-bar" style="padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; background: rgba(30, 41, 59, 0.8); backdrop-filter: blur(10px);">
                 <div style="display: flex; gap: 1.5rem; align-items: center; font-size: 1.1rem;">
                     <span style="font-weight: bold; color: #f43f5e;">❤️ HP: ${adventureState.hp}/${adventureState.max_hp}</span>
                     <span style="color: #3b82f6;">📍 ${adventureState.location}</span>
@@ -1092,7 +1113,7 @@ function renderViz(container) {
             <input type="file" id="viz-file" accept=".csv, .xlsx, .xls" onchange="doUploadTable()" style="margin-bottom: 1rem;">
             
                 <div id="viz-config" style="display: none; border-top: 1px solid var(--border); padding-top: 1.5rem;">
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1rem;">
+                    <div class="responsive-grid-2col" style="margin-bottom: 1rem;">
                         <div>
                             <label style="display: block; color: var(--text-muted); margin-bottom: 0.5rem;">图表类型</label>
                             <select id="viz-type" class="modal-body" style="width: 100%; margin: 0;">
@@ -1161,7 +1182,7 @@ function renderMindMap(container) {
             <div id="mm-status" style="margin-bottom: 1rem;"></div>
             
             <div id="mm-container" style="display: none;">
-                <div style="text-align: right; margin-bottom: 0.5rem; gap: 0.5rem; display: flex; justify-content: flex-end; align-items: center;">
+                <div class="mm-actions" style="text-align: right; margin-bottom: 0.5rem; gap: 0.5rem; display: flex; justify-content: flex-end; align-items: center;">
                      <button onclick="toggleMmCode()" class="primary-btn" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background: var(--bg-darker); border: 1px solid var(--border); margin-right: auto;">📝 查看源码</button>
                      <button onclick="downloadMindMap('svg')" class="primary-btn" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background: var(--bg-darker); border: 1px solid var(--border);">⬇ 下载 SVG</button>
                      <button onclick="downloadMindMap('png')" class="primary-btn" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background: var(--bg-darker); border: 1px solid var(--border);">⬇ 下载 PNG</button>
@@ -2110,7 +2131,7 @@ function renderCloneUpload(container) {
                 <input type="file" id="clone-file" hidden onchange="doCloneAnalyze(this)">
             </div>
             
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-top: 1rem;">
+            <div class="responsive-grid-2col" style="margin-top: 1rem;">
                 <button onclick="doLocalScan()" class="primary-btn" style="background: var(--bg-darker); border: 1px solid var(--border); color: #a5b4fc;">🔍 自动扫描本地记录</button>
                 <button onclick="showClipboardImport()" class="primary-btn" style="background: var(--bg-darker); border: 1px solid var(--border); color: #10b981;">📋 剪贴板一键导入</button>
             </div>
@@ -2495,7 +2516,7 @@ function renderExcel(container) {
                 上传 Excel 文件，用自然语言并在 AI 的帮助下进行数据处理、清洗、统计或拆分。
             </p>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
+            <div class="responsive-grid-2col" style="gap: 2rem;">
                 <!-- Left: Inputs -->
                 <div>
                     <div style="margin-bottom: 1.5rem;">

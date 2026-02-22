@@ -43,9 +43,15 @@
             </div>
         </aside>
 
+        <!-- Sidebar Overlay (mobile) -->
+        <div id="sidebar-overlay" onclick="toggleSidebar()"></div>
+
         <!-- Main Content -->
         <main id="main-content">
             <header id="page-header">
+                <button id="menu-toggle" onclick="toggleSidebar()">
+                    <i data-lucide="menu"></i>
+                </button>
                 <h2 id="page-title">首页</h2>
                 <p id="page-desc">欢迎使用 Office AI Mate</p>
             </header>
