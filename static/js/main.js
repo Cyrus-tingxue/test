@@ -183,6 +183,9 @@ function renderHome(container) {
             `).join('')}
         </div>
     `;
+    if (typeof lucide !== 'undefined') {
+        lucide.createIcons();
+    }
 }
 
 function renderSearch(container) {
@@ -754,19 +757,35 @@ async function doCreativeGenerate() {
 
         // Handle Download (Excel)
         const contentType = response.headers.get("content-type");
-        if (contentType && (contentType.includes("application/vnd.openxmlformats") || contentType.includes("application/octet-stream"))) {
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `creative_export_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.xlsx`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            resultDiv.innerHTML = ' Excel 文件已生成并下载。';
-            return;
+
+        // Handle Excel Download from JSON response (SSE keepalive)
+        if (contentType && contentType.includes("application/json")) {
+            const data = await safeJson(response);
+            if (data.download_url) {
+                const fileRes = await fetch(data.download_url);
+                if (fileRes.ok) {
+                    const blob = await fileRes.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `creative_export_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.xlsx`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    resultDiv.innerHTML = ' Excel 文件已生成并下载。';
+                    return;
+                } else {
+                    const err = await safeJson(fileRes);
+                    resultDiv.innerHTML = `<span style="color: #ef4444;">下载错误: ${err.detail}</span>`;
+                    return;
+                }
+            } else if (data.detail) {
+                resultDiv.innerHTML = `<span style="color: #ef4444;">错误: ${data.detail}</span>`;
+                return;
+            }
         }
 
+        // Normal Text Streaming
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         resultDiv.innerHTML = '';
@@ -2581,15 +2600,28 @@ async function doExcelProcess() {
         });
 
         if (response.ok) {
-            const blob = await response.blob();
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `excel_processed_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.xlsx`;
-            document.body.appendChild(a);
-            a.click();
-            window.URL.revokeObjectURL(url);
-            statusDiv.innerHTML = ' 处理成功！文件已下载。';
+            const data = await safeJson(response);
+            if (data.download_url) {
+                const fileRes = await fetch(data.download_url);
+                if (fileRes.ok) {
+                    const blob = await fileRes.blob();
+                    const url = window.URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `excel_processed_${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.xlsx`;
+                    document.body.appendChild(a);
+                    a.click();
+                    window.URL.revokeObjectURL(url);
+                    statusDiv.innerHTML = ' 处理成功！文件已下载。';
+                } else {
+                    const downloadErr = await safeJson(fileRes);
+                    statusDiv.innerHTML = `<div style="color: #fca5a5; background: rgba(127, 29, 29, 0.2); padding: 1rem; border-radius: 0.5rem; white-space: pre-wrap;"> 下载失败: ${downloadErr.detail}</div>`;
+                }
+            } else if (data.detail) {
+                statusDiv.innerHTML = `<div style="color: #fca5a5; background: rgba(127, 29, 29, 0.2); padding: 1rem; border-radius: 0.5rem; white-space: pre-wrap;"> 处理失败: ${data.detail}</div>`;
+            } else {
+                statusDiv.innerHTML = `<div style="color: #fca5a5; background: rgba(127, 29, 29, 0.2); padding: 1rem; border-radius: 0.5rem; white-space: pre-wrap;"> 未知错误: 响应未包含下载链接</div>`;
+            }
         } else {
             const err = await safeJson(response);
             statusDiv.innerHTML = `<div style="color: #fca5a5; background: rgba(127, 29, 29, 0.2); padding: 1rem; border-radius: 0.5rem; white-space: pre-wrap;"> 失败: ${err.detail}</div>`;

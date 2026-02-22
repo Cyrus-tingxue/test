@@ -14,6 +14,7 @@ import re
 import uuid
 import time
 import random
+import asyncio
 import pandas as pd
 from typing import Any
 import subprocess
@@ -42,6 +43,61 @@ def resolve_api_key(key: str) -> str:
 def resolve_model(model: str) -> str:
     """当前端未提供模型名时，回退到默认模型。"""
     return model.strip() if model and model.strip() else DEFAULT_MODEL
+
+# ── 连接保活辅助 (解决中国用户访问美国服务器时非流式 API 超时断连) ──
+
+# 临时文件下载缓存: {file_id: {"path": str, "filename": str, "media_type": str, "ts": float}}
+TEMP_DOWNLOADS = {}
+
+async def keepalive_llm_stream(provider, model, api_key, messages, process_fn=None, **extra):
+    """空格保活的流式 LLM 调用生成器。
+
+    在 LLM 处理期间每 3 秒发送一个空格字符保持 TCP 连接活跃。
+    LLM 完成后，调用 process_fn 处理完整文本，最终发送 JSON 结果。
+    JSON.parse 会自动忽略前导空格，所以前端 safeJson() 无需任何改动。
+    """
+    collected = []
+    done = asyncio.Event()
+    error_holder = {}
+
+    async def llm_task():
+        try:
+            async for chunk in acall_llm_stream(
+                provider=provider,
+                model=model,
+                api_key=api_key,
+                messages=messages,
+                **extra
+            ):
+                collected.append(chunk)
+        except Exception as e:
+            error_holder['error'] = e
+        finally:
+            done.set()
+
+    task = asyncio.create_task(llm_task())
+
+    # 每 3 秒发送空格保活
+    while not done.is_set():
+        yield " "
+        try:
+            await asyncio.wait_for(asyncio.shield(done.wait()), timeout=3.0)
+        except asyncio.TimeoutError:
+            pass
+
+    # LLM 完成，发送最终结果
+    if 'error' in error_holder:
+        yield json.dumps({"detail": str(error_holder['error'])})
+    else:
+        full_text = "".join(collected)
+        if process_fn:
+            try:
+                result = process_fn(full_text)
+                yield json.dumps(result, ensure_ascii=False)
+            except Exception as e:
+                yield json.dumps({"detail": f"处理结果时出错: {str(e)}"})
+        else:
+            yield json.dumps({"text": full_text}, ensure_ascii=False)
 
 # Initialize FastAPI app
 app = FastAPI(title="Office AI Mate API", version="2.0", description="By 昨夜提灯看雪")
@@ -141,6 +197,22 @@ CACHE_TTL = 600 # 10 minutes
 @app.get("/api/health")
 async def health_check():
     return {"status": "ok", "message": "Office AI Mate API is running"}
+
+@app.get("/api/download/{file_id}")
+async def download_temp_file(file_id: str):
+    """下载由保活端点生成的临时文件。"""
+    # 清理过期文件 (超过 10 分钟)
+    expired = [k for k, v in TEMP_DOWNLOADS.items() if time.time() - v['ts'] > 600]
+    for k in expired:
+        path = TEMP_DOWNLOADS.pop(k, {}).get('path', '')
+        if path and os.path.exists(path):
+            try: os.remove(path)
+            except: pass
+
+    info = TEMP_DOWNLOADS.pop(file_id, None)
+    if not info or not os.path.exists(info['path']):
+        raise HTTPException(status_code=404, detail="File not found or expired")
+    return FileResponse(info['path'], media_type=info['media_type'], filename=info['filename'])
 
 @app.get("/api/defaults")
 async def get_defaults():
@@ -647,33 +719,40 @@ async def generate_creative(request: CreativeRequest):
             prompt = f"请根据以下描述生成一份CSV格式的数据，用于Excel处理：\n描述：{f.get('content', '')}\n\n要求：只输出CSV内容，不要有任何解释，首行为表头。"
             # Handle non-streaming response for Excel
             try:
-                # Call LLM non-streaming to get full CSV
-                csv_content = call_llm(
-                    provider=request.provider,
-                    model=resolve_model(request.model),
-                    api_key=resolve_api_key(request.api_key),
-                    messages=[{"role": "user", "content": prompt}],
-                    **extra
-                )
+                def process_excel(csv_content):
+                    # Cleanup potential markdown code blocks
+                    if "```csv" in csv_content:
+                        csv_content = csv_content.split("```csv")[1].split("```")[0].strip()
+                    elif "```" in csv_content:
+                        csv_content = csv_content.split("```")[1].split("```")[0].strip()
+                    
+                    # Convert to Excel
+                    df = pd.read_csv(io.StringIO(csv_content), on_bad_lines='warn', sep=None, engine='python')
+                    
+                    with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
+                        tmp_path = tmp.name
+                    
+                    df.to_excel(tmp_path, index=False)
+                    
+                    file_id = str(uuid.uuid4())
+                    TEMP_DOWNLOADS[file_id] = {
+                        "path": tmp_path,
+                        "filename": f"generated_excel_{int(time.time())}.xlsx",
+                        "media_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        "ts": time.time()
+                    }
+                    return {"download_url": f"/api/download/{file_id}"}
                 
-                # Cleanup potential markdown code blocks
-                if "```csv" in csv_content:
-                    csv_content = csv_content.split("```csv")[1].split("```")[0].strip()
-                elif "```" in csv_content:
-                    csv_content = csv_content.split("```")[1].split("```")[0].strip()
-                
-                # Convert to Excel
-                df = pd.read_csv(io.StringIO(csv_content), on_bad_lines='warn', sep=None, engine='python')
-                
-                with tempfile.NamedTemporaryFile(delete=False, suffix=".xlsx") as tmp:
-                    tmp_path = tmp.name
-                
-                df.to_excel(tmp_path, index=False)
-                
-                return FileResponse(
-                    tmp_path, 
-                    media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 
-                    filename=f"generated_excel_{int(time.time())}.xlsx"
+                return StreamingResponse(
+                    keepalive_llm_stream(
+                        provider=request.provider,
+                        model=resolve_model(request.model),
+                        api_key=resolve_api_key(request.api_key),
+                        messages=[{"role": "user", "content": prompt}],
+                        process_fn=process_excel,
+                        **extra
+                    ),
+                    media_type="application/json"
                 )
             except Exception as e:
                 print(f"DEBUG EXCEL GEN ERROR: {e}")
@@ -876,59 +955,67 @@ async def process_excel(
         extra = {}
         if base_url: extra["api_base"] = base_url
         
-        generated_code = await acall_llm(
-            provider=provider,
-            model=model,
-            api_key=resolve_api_key(api_key),
-            messages=messages,
-            **extra
-        )
-
-        # 5. Clean Code
-        code = generated_code.strip()
-        if "```python" in code:
-            code = code.split("```python")[1].split("```")[0]
-        elif "```" in code:
-            code = code.split("```")[1].split("```")[0]
-        
-        # Inject path variables to ensure safety/correctness regardless of LLM output
-        path_injection = f"INPUT_PATH = r'{input_path}'\nOUTPUT_PATH = r'{output_path}'\n"
-        final_code = path_injection + code
-
-        # 6. Execute Code
-        print("DEBUG: Executing Excel Processing Code...")
-        # Save code to temp file for debugging/execution
-        with tempfile.NamedTemporaryFile(delete=False, suffix=".py", mode="w", encoding="utf-8") as code_tmp:
-            code_tmp.write(final_code)
-            code_path = code_tmp.name
+        def process_code_and_run(generated_code):
+            # 5. Clean Code
+            code = generated_code.strip()
+            if "```python" in code:
+                code = code.split("```python")[1].split("```")[0]
+            elif "```" in code:
+                code = code.split("```")[1].split("```")[0]
             
-        try:
-            result = subprocess.run(
-                [sys.executable, code_path],
-                capture_output=True,
-                text=True,
-                timeout=60 # 60s timeout
-            )
-            
-            if result.returncode != 0:
-                print(f"Execution Error: {result.stderr}")
-                return JSONResponse(status_code=500, content={"detail": f"代码执行失败:\n{result.stderr}\n\n生成的代码:\n{final_code}"})
+            # Inject path variables to ensure safety/correctness regardless of LLM output
+            path_injection = f"INPUT_PATH = r'{input_path}'\nOUTPUT_PATH = r'{output_path}'\n"
+            final_code = path_injection + code
+
+            # 6. Execute Code
+            print("DEBUG: Executing Excel Processing Code...")
+            # Save code to temp file for debugging/execution
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".py", mode="w", encoding="utf-8") as code_tmp:
+                code_tmp.write(final_code)
+                code_path = code_tmp.name
                 
-        except subprocess.TimeoutExpired:
-            return JSONResponse(status_code=500, content={"detail": "处理超时 (60s)"})
-        except Exception as e:
-            return JSONResponse(status_code=500, content={"detail": f"执行错误: {str(e)}"})
+            try:
+                result = subprocess.run(
+                    [sys.executable, code_path],
+                    capture_output=True,
+                    text=True,
+                    timeout=60 # 60s timeout
+                )
+                
+                if result.returncode != 0:
+                    print(f"Execution Error: {result.stderr}")
+                    raise Exception(f"代码执行失败:\n{result.stderr}\n\n生成的代码:\n{final_code}")
+                    
+            except subprocess.TimeoutExpired:
+                raise Exception("处理超时 (60s)")
+            except Exception as e:
+                raise e
 
-        # 7. Return Result
-        if os.path.exists(output_path):
-            filename = f"processed_{int(time.time())}.xlsx"
-            return FileResponse(
-                output_path, 
-                media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", 
-                filename=filename
-            )
-        else:
-            return JSONResponse(status_code=500, content={"detail": "输出文件未生成。可能是代码逻辑错误。"})
+            # 7. Return Result
+            if os.path.exists(output_path):
+                file_id = str(uuid.uuid4())
+                filename = f"processed_{int(time.time())}.xlsx"
+                TEMP_DOWNLOADS[file_id] = {
+                    "path": output_path,
+                    "filename": filename,
+                    "media_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    "ts": time.time()
+                }
+                return {"download_url": f"/api/download/{file_id}"}
+            else:
+                raise Exception("输出文件未生成。可能是代码逻辑错误。")
+
+        return StreamingResponse(
+            keepalive_llm_stream(
+                provider=provider,
+                model=model,
+                api_key=resolve_api_key(api_key),
+                messages=messages,
+                process_fn=process_code_and_run,
+                **extra
+            ),
+            media_type="application/json"
+        )
 
     except Exception as e:
         traceback.print_exc()
@@ -1211,21 +1298,23 @@ async def generate_ppt_outline(request: PPTRequest):
         if request.base_url:
             extra["api_base"] = request.base_url
 
-        response = call_llm(
-            provider=request.provider,
-            model=resolve_model(request.model),
-            api_key=resolve_api_key(request.api_key),
-            messages=messages,
-            **extra
-        )
-        
-        try:
-            clean_json = re.sub(r"```json\s*", "", response)
+        def process_ppt(response_text):
+            clean_json = re.sub(r"```json\s*", "", response_text)
             clean_json = re.sub(r"\s*```", "", clean_json)
             data = json.loads(clean_json)
             return {"data": data}
-        except json.JSONDecodeError:
-             raise HTTPException(status_code=500, detail=f"Failed to parse JSON from AI: {response[:200]}")
+
+        return StreamingResponse(
+            keepalive_llm_stream(
+                provider=request.provider,
+                model=resolve_model(request.model),
+                api_key=resolve_api_key(request.api_key),
+                messages=messages,
+                process_fn=process_ppt,
+                **extra
+            ),
+            media_type="application/json"
+        )
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1427,53 +1516,44 @@ async def generate_mindmap(request: MindMapRequest):
         if request.base_url:
             extra["api_base"] = request.base_url
 
-        response = call_llm(
-            provider=request.provider,
-            model=resolve_model(request.model),
-            api_key=resolve_api_key(request.api_key),
-            messages=messages,
-            **extra
+        def process_mindmap(response_text):
+            code = response_text.strip()
+            # 1. Handle Markdown Code Blocks
+            blocks = re.findall(r"```(?:mermaid)?\s*(.*?)\s*```", code, re.DOTALL)
+            if blocks:
+                code = blocks[0].strip()
+            # 2. Extract only the mermaid part (remove AI chatter)
+            start_keywords = ["mindmap", "graph", "flowchart", "timeline", "gantt", "sequenceDiagram", "classDiagram", "stateDiagram", "pie"]
+            lines = code.split('\n')
+            valid_start = -1
+            for i, line in enumerate(lines):
+                clean_line = line.strip()
+                if any(clean_line.startswith(kw) for kw in start_keywords):
+                    valid_start = i
+                    break
+            if valid_start != -1:
+                code = "\n".join(lines[valid_start:]).strip()
+            # 3. Specific Fixes for Pie Charts
+            if request.chart_type == "pie":
+                if not code.startswith("pie"):
+                    code = "pie\n" + code
+                code = re.sub(r'^\s*([^"\s:][^:\n]+[^"\s:])\s*:\s*(\d+)', r'    "\1" : \2', code, flags=re.MULTILINE)
+            # 4. Specific Fixes for Mindmaps
+            if request.chart_type == "mindmap" and not code.startswith("mindmap"):
+                code = "mindmap\n  " + code.replace("\n", "\n  ")
+            return {"code": code}
+
+        return StreamingResponse(
+            keepalive_llm_stream(
+                provider=request.provider,
+                model=resolve_model(request.model),
+                api_key=resolve_api_key(request.api_key),
+                messages=messages,
+                process_fn=process_mindmap,
+                **extra
+            ),
+            media_type="application/json"
         )
-        
-        # --- Robust Cleaning ---
-        code = response.strip()
-        
-        # 1. Handle Markdown Code Blocks
-        blocks = re.findall(r"```(?:mermaid)?\s*(.*?)\s*```", code, re.DOTALL)
-        if blocks:
-            code = blocks[0].strip()
-        
-        # 2. Extract only the mermaid part (remove AI chatter)
-        start_keywords = ["mindmap", "graph", "flowchart", "timeline", "gantt", "sequenceDiagram", "classDiagram", "stateDiagram", "pie"]
-        lines = code.split('\n')
-        valid_start = -1
-        for i, line in enumerate(lines):
-            clean_line = line.strip()
-            if any(clean_line.startswith(kw) for kw in start_keywords):
-                valid_start = i
-                break
-        
-        if valid_start != -1:
-            # We found a start, but we should also find a logical end? 
-            # Usually LLM might add text AFTER. We keep it simple: take until a line that doesn't fit?
-            # Actually, most mermaid diagrams end at the end of the input or code block.
-            code = "\n".join(lines[valid_start:]).strip()
-
-        # 3. Specific Fixes for Pie Charts
-        if request.chart_type == "pie":
-            # Ensure it starts with pie
-            if not code.startswith("pie"):
-                code = "pie\n" + code
-            # Ensure labels are quoted (common LLM failure)
-            # Find lines like: Label : 10 and replace with "Label" : 10
-            # RegEx: ^\s*([^":\n]+)\s*:\s*(\d+)
-            code = re.sub(r'^\s*([^"\s:][^:\n]+[^"\s:])\s*:\s*(\d+)', r'    "\1" : \2', code, flags=re.MULTILINE)
-
-        # 4. Specific Fixes for Mindmaps
-        if request.chart_type == "mindmap" and not code.startswith("mindmap"):
-            code = "mindmap\n  " + code.replace("\n", "\n  ")
-        
-        return {"code": code}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1510,18 +1590,22 @@ async def system_generate_code(request: SystemRequest):
         if request.base_url:
             extra["api_base"] = request.base_url
 
-        response = call_llm(
-            provider=request.provider,
-            model=resolve_model(request.model),
-            api_key=resolve_api_key(request.api_key),
-            messages=messages,
-            **extra
+        def process_code(response_text):
+            code = re.sub(r"```python(.*?)```", r"\1", response_text, flags=re.DOTALL)
+            code = re.sub(r"```", "", code).strip()
+            return {"code": code}
+
+        return StreamingResponse(
+            keepalive_llm_stream(
+                provider=request.provider,
+                model=resolve_model(request.model),
+                api_key=resolve_api_key(request.api_key),
+                messages=messages,
+                process_fn=process_code,
+                **extra
+            ),
+            media_type="application/json"
         )
-        
-        code = re.sub(r"```python(.*?)```", r"\1", response, flags=re.DOTALL)
-        code = re.sub(r"```", "", code).strip()
-        
-        return {"code": code}
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -1611,37 +1695,40 @@ Output JSON format ONLY:
         if request.base_url:
             extra["api_base"] = request.base_url
 
-        # Call LLM
-        response_content = await acall_llm(
-            messages=messages,
-            provider=request.provider,
-            model=resolve_model(request.model),
-            api_key=resolve_api_key(request.api_key),
-            **extra
+        def process_adventure(response_content):
+            try:
+                json_match = re.search(r"\{.*\}", response_content, re.DOTALL)
+                if json_match:
+                    result = json.loads(json_match.group(0))
+                else:
+                    result = json.loads(response_content)
+                
+                # Robustness: Check for missing keys
+                if "plot" not in result:
+                    result["plot"] = result.get("narrative") or result.get("story") or result.get("description") or result.get("output") or response_content
+                
+                if "state_update" not in result:
+                    result["state_update"] = {}
+
+                return result
+            except json.JSONDecodeError:
+                return {
+                    "plot": response_content + "\n(系统提示: AI 返回格式异常，但剧情继续)",
+                    "state_update": state,
+                    "choices": ["继续", "观察四周", "检查状态"]
+                }
+
+        return StreamingResponse(
+            keepalive_llm_stream(
+                provider=request.provider,
+                model=resolve_model(request.model),
+                api_key=resolve_api_key(request.api_key),
+                messages=messages,
+                process_fn=process_adventure,
+                **extra
+            ),
+            media_type="application/json"
         )
-
-        # Parse JSON
-        try:
-            json_match = re.search(r"\{.*\}", response_content, re.DOTALL)
-            if json_match:
-                result = json.loads(json_match.group(0))
-            else:
-                result = json.loads(response_content)
-            
-            # Robustness: Check for missing keys
-            if "plot" not in result:
-                result["plot"] = result.get("narrative") or result.get("story") or result.get("description") or result.get("output") or response_content
-            
-            if "state_update" not in result:
-                result["state_update"] = {}
-
-            return result
-        except json.JSONDecodeError:
-            return {
-                "plot": response_content + "\n(系统提示: AI 返回格式异常，但剧情继续)",
-                "state_update": state,
-                "choices": ["继续", "观察四周", "检查状态"]
-            }
 
     except Exception as e:
         print(f"Adventure Error: {e}")
