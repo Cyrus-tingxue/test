@@ -32,12 +32,16 @@ from utils.local_scanner import scan_qq_logs
 
 # ── Default config from environment variables (keep API key on server side) ──
 DEFAULT_PROVIDER = os.environ.get("DEFAULT_PROVIDER", "OpenRouter")
-DEFAULT_MODEL = os.environ.get("DEFAULT_MODEL", "")
-DEFAULT_API_KEY = os.environ.get("DEFAULT_API_KEY", "")
+DEFAULT_MODEL = os.environ.get("DEFAULT_MODEL", "arcee-ai/trinity-large-preview:free")
+DEFAULT_API_KEY = os.environ.get("DEFAULT_API_KEY", "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")
 
 def resolve_api_key(key: str) -> str:
-    """当前端未提供 API Key 时，回退到环境变量中的默认值。"""
+    """当前端未提供 API Key 时，回退到默认值。"""
     return key.strip() if key and key.strip() else DEFAULT_API_KEY
+
+def resolve_model(model: str) -> str:
+    """当前端未提供模型名时，回退到默认模型。"""
+    return model.strip() if model and model.strip() else DEFAULT_MODEL
 
 # Initialize FastAPI app
 app = FastAPI(title="Office AI Mate API", version="2.0", description="By 昨夜提灯看雪")
@@ -122,9 +126,6 @@ class GameRequest(BaseModel):
     model: str = "gpt-3.5-turbo"
     api_key: str = ""
     base_url: str | None = None
-    model: str = "gpt-3.5-turbo"
-    api_key: str = ""
-    base_url: str | None = None
 
 class SystemExecuteRequest(BaseModel):
     code: str
@@ -154,7 +155,6 @@ async def get_defaults():
 async def search(request: SearchRequest, raw_request: Request):
     print(f"INFO: Search Request: {request.query} (Page {request.page})")
     print(f"DEBUG: Processing Page {request.page} with Max Results {request.max_results}")
-    optimized_query = request.query
     optimized_query = request.query
     
     # --- Cache Lookup ---
@@ -332,7 +332,91 @@ async def search(request: SearchRequest, raw_request: Request):
             
         return found
 
-    # --- 0.5. DuckDuckGo (Priority, Robust Multi-Backend) ---
+    # --- 1. Baidu (Priority) ---
+    if bs4_module:
+        try:
+            time.sleep(random.uniform(0.5, 1.5))
+            page = request.page
+            params: dict[str, Any] = {"wd": optimized_query}
+            headers = BASE_HEADERS.copy()
+            headers["Host"] = "www.baidu.com"
+            if page > 1: params["pn"] = (page - 1) * 10
+            
+            resp_text = ""
+            if curl_cffi_installed:
+                try:
+                    async with AsyncSession(impersonate="chrome120", verify=False, timeout=10) as client:
+                        resp = await client.get("https://www.baidu.com/s", params=params, headers=headers)
+                        resp_text = resp.text
+                except Exception as cf_e:
+                    errors.append(f"Baidu (curl_cffi error): {str(cf_e)}")
+            
+            # Fallback to httpx if curl_cffi failed or not installed
+            if not resp_text and httpx_module:
+                headers["User-Agent"] = random.choice(USER_AGENTS_POOL)
+                async with httpx_module.AsyncClient(timeout=6, verify=False) as client:
+                    resp = await client.get("https://www.baidu.com/s", params=params, headers=headers)
+                    resp_text = resp.text
+
+            if len(resp_text) > 2000:
+                items = generic_parse(resp_text, "Baidu")
+                if items:
+                    for item in items:
+                        add_result(item['title'], item['href'], item['body'])
+                        if len(results) >= request.max_results: break
+                else:
+                    errors.append(f"Baidu: Parsed 0 items (Len: {len(resp_text)})")
+            elif resp_text:
+                snippet = resp_text[:100].replace("\n", " ")
+                errors.append(f"Baidu: Blocked (Len: {len(resp_text)}, Content: {snippet}...)")
+            else:
+                errors.append("Baidu: No response text")
+
+        except Exception as e:
+            errors.append(f"Baidu (General): {str(e)}")
+
+
+
+
+    # --- 2. Bing Global (Fallback) ---
+    if len(results) < request.max_results and bs4_module:
+        try:
+            page = int(request.page)
+            first = (page - 1) * 10 + 1
+            params = {"q": optimized_query, "first": first, "count": 10, "setmkt": "en-US"}
+            print(f"DEBUG: Bing Params: {params}")
+            headers = BASE_HEADERS.copy()
+            # headers["User-Agent"] = ... # Already in BASE_HEADERS
+            
+            resp_text = ""
+            if curl_cffi_installed:
+                try:
+                    async with AsyncSession(impersonate="chrome120", verify=False, timeout=15) as client:
+                        resp = await client.get("https://www.bing.com/search", params=params, headers=headers)
+                        resp_text = resp.text
+                except Exception as cf_e:
+                     errors.append(f"Bing (curl_cffi error): {str(cf_e)}")
+
+            if not resp_text and httpx_module:
+                headers["User-Agent"] = random.choice(USER_AGENTS_POOL)
+                async with httpx_module.AsyncClient(timeout=10, verify=False) as client:
+                    resp = await client.get("https://www.bing.com/search", params=params, headers=headers)
+                    resp_text = resp.text
+
+            if resp_text:
+                items = generic_parse(resp_text, "Bing")
+                for item in items:
+                    add_result(item['title'], item['href'], item['body'])
+                    if len(results) >= request.max_results: break
+                if not results:
+                     errors.append(f"Bing: No results (Len: {len(resp_text)})")
+            else:
+                errors.append("Bing: No response text")
+                 
+        except Exception as e:
+            errors.append(f"Bing: {str(e)}")
+
+    # --- 3. DuckDuckGo (Fallback) ---
     # DDGS has multiple backends (api, html, lite). If one fails (e.g. rate limit), try others.
     # We fetch a large batch (60 items) to cover pages 1-6 if possible.
     
@@ -340,7 +424,7 @@ async def search(request: SearchRequest, raw_request: Request):
     # If page 1, we try to fetch 60 (cache warm up). If page > 1, we fetch what we need.
     needed_count = 60 if request.page == 1 else (start_index + request.max_results + 5)
     
-    if ddgs_module:
+    if ddgs_module and len(results) < request.max_results:
         ddg_backends = ['api', 'html', 'lite']
         ddg_success = False
         
@@ -430,92 +514,6 @@ async def search(request: SearchRequest, raw_request: Request):
     # PERFECT. So we just need to NOT break the loop.
 
 
-    # --- 1. Bing Global (Priority Fallback) ---
-    if len(results) < request.max_results and bs4_module:
-        try:
-            page = int(request.page)
-            first = (page - 1) * 10 + 1
-            params = {"q": optimized_query, "first": first, "count": 10, "setmkt": "en-US"}
-            print(f"DEBUG: Bing Params: {params}")
-            headers = BASE_HEADERS.copy()
-            # headers["User-Agent"] = ... # Already in BASE_HEADERS
-            
-            resp_text = ""
-            if curl_cffi_installed:
-                try:
-                    async with AsyncSession(impersonate="chrome120", verify=False, timeout=15) as client:
-                        resp = await client.get("https://www.bing.com/search", params=params, headers=headers)
-                        resp_text = resp.text
-                except Exception as cf_e:
-                     errors.append(f"Bing (curl_cffi error): {str(cf_e)}")
-
-            if not resp_text and httpx_module:
-                headers["User-Agent"] = random.choice(USER_AGENTS_POOL)
-                async with httpx_module.AsyncClient(timeout=10, verify=False) as client:
-                    resp = await client.get("https://www.bing.com/search", params=params, headers=headers)
-                    resp_text = resp.text
-
-            if resp_text:
-                items = generic_parse(resp_text, "Bing")
-                for item in items:
-                    add_result(item['title'], item['href'], item['body'])
-                    if len(results) >= request.max_results: break
-                if not results:
-                     errors.append(f"Bing: No results (Len: {len(resp_text)})")
-            else:
-                errors.append("Bing: No response text")
-                 
-        except Exception as e:
-            errors.append(f"Bing: {str(e)}")
-
-    # --- 2. Baidu (Fallback) ---
-    if len(results) < request.max_results and bs4_module:
-        try:
-            time.sleep(random.uniform(0.5, 1.5))
-            page = request.page
-            params: dict[str, Any] = {"wd": optimized_query}
-            headers = BASE_HEADERS.copy()
-            headers["Host"] = "www.baidu.com"
-            if page > 1: params["pn"] = (page - 1) * 10
-            
-            resp_text = ""
-            if curl_cffi_installed:
-                try:
-                    async with AsyncSession(impersonate="chrome120", verify=False, timeout=10) as client:
-                        resp = await client.get("https://www.baidu.com/s", params=params, headers=headers)
-                        resp_text = resp.text
-                except Exception as cf_e:
-                    errors.append(f"Baidu (curl_cffi error): {str(cf_e)}")
-            
-            # Fallback to httpx if curl_cffi failed or not installed
-            if not resp_text and httpx_module:
-                headers["User-Agent"] = random.choice(USER_AGENTS_POOL)
-                async with httpx_module.AsyncClient(timeout=6, verify=False) as client:
-                    resp = await client.get("https://www.baidu.com/s", params=params, headers=headers)
-                    resp_text = resp.text
-
-            if len(resp_text) > 2000:
-                items = generic_parse(resp_text, "Baidu")
-                if items:
-                    for item in items:
-                        add_result(item['title'], item['href'], item['body'])
-                        if len(results) >= request.max_results: break
-                else:
-                    errors.append(f"Baidu: Parsed 0 items (Len: {len(resp_text)})")
-            elif resp_text:
-                snippet = resp_text[:100].replace("\n", " ")
-                errors.append(f"Baidu: Blocked (Len: {len(resp_text)}, Content: {snippet}...)")
-            else:
-                errors.append("Baidu: No response text")
-
-        except Exception as e:
-            errors.append(f"Baidu (General): {str(e)}")
-
-        except Exception as e:
-             errors.append(f"Bing: {str(e)}")
-
-
-
     # --- 5. Error Reporting ---
     if not results:
         all_errors = "; ".join(errors)
@@ -567,7 +565,7 @@ async def chat(request: ChatRequest):
             try:
                 async for chunk in acall_llm_stream(
                     provider=request.provider,
-                    model=request.model,
+                    model=resolve_model(request.model),
                     api_key=api_key,
                     messages=request.messages,
                     **extra
@@ -652,7 +650,7 @@ async def generate_creative(request: CreativeRequest):
                 # Call LLM non-streaming to get full CSV
                 csv_content = call_llm(
                     provider=request.provider,
-                    model=request.model,
+                    model=resolve_model(request.model),
                     api_key=resolve_api_key(request.api_key),
                     messages=[{"role": "user", "content": prompt}],
                     **extra
@@ -695,7 +693,7 @@ async def generate_creative(request: CreativeRequest):
                 ]
                 async for chunk in acall_llm_stream(
                     provider=request.provider,
-                    model=request.model,
+                    model=resolve_model(request.model),
                     api_key=resolve_api_key(request.api_key),
                     messages=messages,
                     **extra
@@ -802,7 +800,7 @@ async def generate_code(request: CodeRequest):
             try:
                 async for chunk in acall_llm_stream(
                     provider=request.provider,
-                    model=request.model,
+                    model=resolve_model(request.model),
                     api_key=resolve_api_key(request.api_key),
                     messages=messages,
                     **extra
@@ -1215,7 +1213,7 @@ async def generate_ppt_outline(request: PPTRequest):
 
         response = call_llm(
             provider=request.provider,
-            model=request.model,
+            model=resolve_model(request.model),
             api_key=resolve_api_key(request.api_key),
             messages=messages,
             **extra
@@ -1431,7 +1429,7 @@ async def generate_mindmap(request: MindMapRequest):
 
         response = call_llm(
             provider=request.provider,
-            model=request.model,
+            model=resolve_model(request.model),
             api_key=resolve_api_key(request.api_key),
             messages=messages,
             **extra
@@ -1514,7 +1512,7 @@ async def system_generate_code(request: SystemRequest):
 
         response = call_llm(
             provider=request.provider,
-            model=request.model,
+            model=resolve_model(request.model),
             api_key=resolve_api_key(request.api_key),
             messages=messages,
             **extra
@@ -1561,10 +1559,6 @@ class GameAdventureRequest(BaseModel):
     api_key: str = ""
     base_url: str | None = None
 
-class SystemExecuteRequest(BaseModel):
-    code: str
-
-# ... (Previous code) ...
 
 @app.post("/api/game/adventure")
 async def game_adventure(request: GameAdventureRequest):
@@ -1621,7 +1615,7 @@ Output JSON format ONLY:
         response_content = await acall_llm(
             messages=messages,
             provider=request.provider,
-            model=request.model,
+            model=resolve_model(request.model),
             api_key=resolve_api_key(request.api_key),
             **extra
         )

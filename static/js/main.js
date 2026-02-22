@@ -64,11 +64,11 @@ function toggleSidebar() {
 }
 
 // Initialize App (use 'load' to ensure all deferred scripts are ready)
-window.addEventListener('load', () => {
+window.addEventListener('load', async () => {
     if (typeof lucide !== 'undefined') lucide.createIcons();
     renderSidebar();
+    await loadSettings();
     loadPage('home'); // Default page
-    loadSettings();
 });
 
 // Sidebar Renderer
@@ -118,6 +118,15 @@ function loadPage(pageKey) {
     const contentArea = document.getElementById('content-area');
     contentArea.innerHTML = ''; // Clear current content
 
+    // 游戏页面使用全宽，其他页面恢复默认
+    if (pageKey === 'game') {
+        contentArea.style.maxWidth = 'none';
+        contentArea.style.padding = '1.5rem 2rem';
+    } else {
+        contentArea.style.maxWidth = '';
+        contentArea.style.padding = '';
+    }
+
     if (pageKey === 'home') renderHome(contentArea);
     else if (pageKey === 'search') renderSearch(contentArea);
     else if (pageKey === 'free_chat') renderChat(contentArea);
@@ -133,7 +142,7 @@ function loadPage(pageKey) {
     else if (pageKey === 'markdown') renderMarkdown(contentArea);
     else if (pageKey === 'system') renderSystem(contentArea);
     else {
-        contentArea.innerHTML = `<div class="card"><h3>🏗️ ${pageItem.label} 正在开发中...</h3><p>此功能正在从 Python 迁移到 JavaScript 前端。</p></div>`;
+        contentArea.innerHTML = `<div class="card"><h3>️ ${pageItem.label} 正在开发中...</h3><p>此功能正在从 Python 迁移到 JavaScript 前端。</p></div>`;
     }
 }
 
@@ -141,16 +150,16 @@ function loadPage(pageKey) {
 
 function renderHome(container) {
     const features = [
-        { key: 'free_chat', icon: '💬', title: 'AI 对话', desc: '与AI自由对话，获取即时解答', tag: 'AI', tagClass: 'tag-ai' },
-        { key: 'clone', icon: '🎭', title: 'AI 角色克隆', desc: '上传聊天记录，定制专属 AI 数字分身', tag: 'AI', tagClass: 'tag-ai' },
-        { key: 'search', icon: '🔍', title: 'AI 搜索', desc: '联网搜索+AI总结，快速获取准确信息', tag: 'AI', tagClass: 'tag-ai' },
-        { key: 'code', icon: '💻', title: '代码助手', desc: '支持15+语言的代码生成、审查与调试', tag: 'AI', tagClass: 'tag-ai' },
-        { key: 'creative', icon: '✨', title: '创作工坊', desc: '日报周报、文案、简历、合同审查等20+模板', tag: '智能办公', tagClass: 'tag-tool' },
-        { key: 'excel', icon: '📊', title: 'Excel 助手', desc: 'AI 自动处理 Excel 数据，支持清洗、统计、拆分', tag: '智能办公', tagClass: 'tag-tool' },
-        { key: 'ppt', icon: '📽️', title: 'AI PPT', desc: '一键生成 PPT 大纲与文件', tag: '智能办公', tagClass: 'tag-tool' },
-        { key: 'converter', icon: '📑', title: '智能格式转换', desc: 'PDF/图片转Excel、Word、PDF等', tag: '智能办公', tagClass: 'tag-tool' },
-        { key: 'mindmap', icon: '🧠', title: '思维导图', desc: 'AI自动生成结构化思维导图', tag: '智能办公', tagClass: 'tag-tool' },
-        { key: 'viz', icon: '📊', title: '数据可视化', desc: '上传表格数据，自动生成图表', tag: '智能办公', tagClass: 'tag-tool' },
+        { key: 'free_chat', icon: '', title: 'AI 对话', desc: '与AI自由对话，获取即时解答', tag: 'AI', tagClass: 'tag-ai' },
+        { key: 'clone', icon: '', title: 'AI 角色克隆', desc: '上传聊天记录，定制专属 AI 数字分身', tag: 'AI', tagClass: 'tag-ai' },
+        { key: 'search', icon: '', title: 'AI 搜索', desc: '联网搜索+AI总结，快速获取准确信息', tag: 'AI', tagClass: 'tag-ai' },
+        { key: 'code', icon: '', title: '代码助手', desc: '支持15+语言的代码生成、审查与调试', tag: 'AI', tagClass: 'tag-ai' },
+        { key: 'creative', icon: '', title: '创作工坊', desc: '日报周报、文案、简历、合同审查等20+模板', tag: '智能办公', tagClass: 'tag-tool' },
+        { key: 'excel', icon: '', title: 'Excel 助手', desc: 'AI 自动处理 Excel 数据，支持清洗、统计、拆分', tag: '智能办公', tagClass: 'tag-tool' },
+        { key: 'ppt', icon: '️', title: 'AI PPT', desc: '一键生成 PPT 大纲与文件', tag: '智能办公', tagClass: 'tag-tool' },
+        { key: 'converter', icon: '', title: '智能格式转换', desc: 'PDF/图片转Excel、Word、PDF等', tag: '智能办公', tagClass: 'tag-tool' },
+        { key: 'mindmap', icon: '', title: '思维导图', desc: 'AI自动生成结构化思维导图', tag: '智能办公', tagClass: 'tag-tool' },
+        { key: 'viz', icon: '', title: '数据可视化', desc: '上传表格数据，自动生成图表', tag: '智能办公', tagClass: 'tag-tool' },
     ];
 
     container.innerHTML = `
@@ -181,7 +190,7 @@ function renderSearch(container) {
         <div class="card">
             <div style="display: flex; gap: 1rem; margin-bottom: 1rem;">
                 <input type="text" id="search-input" placeholder="输入搜索问题..." class="modal-body" style="flex: 1; padding: 0.8rem; border-radius: 0.5rem; border: 1px solid var(--border); background: var(--bg-darker); color: white;" onkeydown="if(event.key === 'Enter') doSearch()">
-                <button onclick="doSearch()" class="primary-btn" style="width: auto;">🔍 搜索</button>
+                <button onclick="doSearch()" class="primary-btn" style="width: auto;"> 搜索</button>
             </div>
             
             <div id="search-status" style="margin-bottom: 1rem; color: var(--text-muted); font-size: 0.9rem;"></div>
@@ -194,7 +203,7 @@ function renderSearch(container) {
             <div id="search-results"></div>
 
             <div id="load-more-container" style="text-align: center; margin-top: 1.5rem; display: none;">
-                <button onclick="doLoadMore()" class="primary-btn" style="background: var(--bg-darker); border: 1px solid var(--border); width: auto;">👇 加载更多</button>
+                <button onclick="doLoadMore()" class="primary-btn" style="background: var(--bg-darker); border: 1px solid var(--border); width: auto;"> 加载更多</button>
             </div>
         </div>
     `;
@@ -225,7 +234,7 @@ function renderChat(container) {
 function renderConverter(container) {
     container.innerHTML = `
         <div class="card">
-            <h3>📑 智能格式转换</h3>
+            <h3> 智能格式转换</h3>
             <div style="display: flex; gap: 1rem; border-bottom: 1px solid var(--border); margin-bottom: 1.5rem; overflow-x: auto; padding-bottom: 0.5rem;">
                 <button class="nav-item active" onclick="switchConvertTab(this, 'pdf2word')">PDF 转 Word</button>
                 <button class="nav-item" onclick="switchConvertTab(this, 'img2pdf')">图片 转 PDF</button>
@@ -278,35 +287,35 @@ const SCENARIOS = [
         id: 'rules_horror',
         name: '规则怪谈',
         desc: '你穿越到了一个充满诡异规则的世界。遵守规则是生存的唯一方式，但规则本身......可能是假的。',
-        icon: '🕯️',
+        icon: '️',
         bg: 'linear-gradient(135deg, #000000 0%, #434343 100%)'
     },
     {
         id: 'xiuxian',
         name: '修仙模拟器',
         desc: '凡人修仙，逆天改命。从炼气期开始你的长生之路。',
-        icon: '⚔️',
+        icon: '️',
         bg: 'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)'
     },
     {
         id: 'zombie',
         name: '末日生存',
         desc: '丧尸围城，资源匮乏。你不仅要活下去，还要寻找人类最后的希望。',
-        icon: '🧟',
+        icon: '',
         bg: 'linear-gradient(135deg, #3f3f46 0%, #18181b 100%)'
     },
     {
         id: 'cyberpunk',
         name: '夜之城传奇',
         desc: '霓虹闪烁的赛博朋克世界。义体改造、骇客入侵、公司战争。',
-        icon: '🌃',
+        icon: '',
         bg: 'linear-gradient(135deg, #2e1065 0%, #020617 100%)'
     },
     {
         id: 'office',
         name: '职场升职记',
         desc: '开局被裁员，背负巨额房贷。如何在尔虞我诈的职场中逆袭？',
-        icon: '💼',
+        icon: '',
         bg: 'linear-gradient(135deg, #1e1b4b 0%, #020617 100%)'
     }
 ];
@@ -325,22 +334,22 @@ function renderGame(container) {
 function renderScenarioSelect(container) {
     container.innerHTML = `
         <div class="card" style="text-align: center; padding: 2rem;">
-            <h2 style="margin-bottom: 0.5rem;">🌌 选择你的平行宇宙</h2>
+            <h2 style="margin-bottom: 0.5rem;"> 选择你的平行宇宙</h2>
             <p style="color: var(--text-muted); margin-bottom: 2rem;">AI 实时生成的无限文字冒险。每一次选择，都是全新的历史。</p>
             
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1.5rem;">
                 ${SCENARIOS.map(s => `
-                    <div onclick="startAdventure('${s.id}')" style="background: ${s.bg}; border: 1px solid var(--border); border-radius: 1rem; padding: 1.5rem; cursor: pointer; transition: transform 0.2s; text-align: left; position: relative; overflow: hidden;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='none'">
+                    <div onclick="startAdventure('${s.id}')" style="background: ${s.bg}; border: 1px solid var(--border); border-radius: 1rem; padding: 2.5rem; cursor: pointer; transition: transform 0.2s; text-align: left; position: relative; overflow: hidden; display: flex; flex-direction: column; height: 100%; box-sizing: border-box;" onmouseover="this.style.transform='translateY(-5px)'" onmouseout="this.style.transform='none'">
                         <div style="font-size: 3rem; margin-bottom: 1rem;">${s.icon}</div>
-                        <h3 style="margin-bottom: 0.5rem; color: white;">${s.name}</h3>
-                        <p style="color: #94a3b8; font-size: 0.9rem; line-height: 1.6;">${s.desc}</p>
+                        <h3 style="margin-bottom: 0.5rem; color: white; font-size: 1.8rem; font-weight: 600;">${s.name}</h3>
+                        <p style="color: #94a3b8; font-size: 1.15rem; line-height: 1.6; margin: 0 0 auto 0;">${s.desc}</p>
                         <div style="position: absolute; bottom: 1rem; right: 1rem; opacity: 0.2; font-size: 5rem;">${s.icon}</div>
                     </div>
                 `).join('')}
             </div>
             
              <div style="margin-top: 2rem; color: var(--text-muted); font-size: 0.8rem;">
-                ⚠️ 提示：所有剧情均由 AI 实时生成，请勿输入个人隐私信息。
+                ️ 提示：所有剧情均由 AI 实时生成，请勿输入个人隐私信息。
             </div>
         </div>
     `;
@@ -367,46 +376,44 @@ async function startAdventure(scenarioId) {
 
 function renderAdventureUI(container) {
     container.innerHTML = `
-        <div style="display: grid; grid-template-rows: auto 1fr auto; height: calc(100vh - 140px); gap: 1rem;">
+        <div style="display: grid; grid-template-rows: auto 1fr auto; height: calc(100vh - 30px); gap: 0.5rem;">
             <!-- Status Bar -->
-            <div class="card adv-status-bar" style="padding: 1rem 1.5rem; display: flex; justify-content: space-between; align-items: center; background: rgba(30, 41, 59, 0.8); backdrop-filter: blur(10px);">
-                <div style="display: flex; gap: 1.5rem; align-items: center; font-size: 1.1rem;">
-                    <span style="font-weight: bold; color: #f43f5e;">❤️ HP: ${adventureState.hp}/${adventureState.max_hp}</span>
-                    <span style="color: #3b82f6;">📍 ${adventureState.location}</span>
-                    <span style="color: #eab308;">📦 ${adventureState.inventory.join(', ') || '空'}</span>
+            <div class="card adv-status-bar" style="padding: 1.2rem 2rem; display: flex; justify-content: space-between; align-items: center; background: rgba(30, 41, 59, 0.8); backdrop-filter: blur(10px);">
+                <div style="display: flex; gap: 2rem; align-items: center; font-size: 1.25rem;">
+                    <span style="font-weight: bold; color: #f43f5e;">️ HP: ${adventureState.hp}/${adventureState.max_hp}</span>
+                    <span style="color: #3b82f6;"> ${adventureState.location}</span>
+                    <span style="color: #eab308;"> ${adventureState.inventory.join(', ') || '空'}</span>
                 </div>
                 <div>
-                     <span style="color: var(--text-muted); font-size: 1rem;">${adventureState.status}</span>
-                     <button onclick="resetAdventure()" style="margin-left: 1rem; background: transparent; border: 1px solid var(--border); color: var(--text-muted); padding: 0.3rem 0.8rem; border-radius: 0.25rem; cursor: pointer; font-size: 0.9rem;">🔄 重开</button>
+                     <span style="color: var(--text-muted); font-size: 1.1rem;">${adventureState.status}</span>
+                     <button onclick="resetAdventure()" style="margin-left: 1rem; background: transparent; border: 1px solid var(--border); color: var(--text-muted); padding: 0.4rem 1rem; border-radius: 0.25rem; cursor: pointer; font-size: 1rem;"> 重开</button>
                 </div>
             </div>
 
             <!-- Log Area -->
-            <div id="adv-log" class="card" style="overflow-y: auto; padding: 1.5rem; display: flex; flex-direction: column; gap: 1.5rem; background: rgba(15, 23, 42, 0.6); font-size: 1.15rem;">
+            <div id="adv-log" class="card" style="overflow-y: auto; padding: 2rem 2.5rem; display: flex; flex-direction: column; gap: 2rem; background: rgba(15, 23, 42, 0.6); font-size: 1.35rem;">
                 ${adventureState.messages.map(msg => `
                     <div style="animation: fadeIn 0.5s; opacity: 1;">
                         ${msg.role === 'user'
-            ? `<div style="color: var(--primary); font-weight: bold; margin-bottom: 0.5rem;">> ${msg.content}</div>`
-            : `<div style="line-height: 1.8; color: #e2e8f0; white-space: pre-wrap;">${msg.content}</div>`
+            ? `<div style="color: var(--primary); font-weight: bold; margin-bottom: 0.5rem; font-size: 1.4rem;">> ${msg.content}</div>`
+            : `<div style="line-height: 2.0; color: #e2e8f0; white-space: pre-wrap;">${msg.content}</div>`
         }
                     </div>
                 `).join('')}
-                <div id="adv-loading" style="display: none; color: var(--text-muted);">
+                <div id="adv-loading" style="display: none; color: var(--text-muted); font-size: 1.2rem;">
                     <span class="loading-spinner"></span> DM 正在思考命运的走向...
                 </div>
             </div>
 
             <!-- Input Area -->
-            <div class="card" style="padding: 1.2rem;">
-                <div id="adv-choices" style="display: flex; gap: 0.8rem; margin-bottom: 1rem; overflow-x: auto; padding-bottom: 0.5rem;">
-                    <!-- Choices injected here -->
-                </div>
+            <div class="card" style="padding: 1.5rem;">
+                <div id="adv-choices" style="display: flex; gap: 0.8rem; margin-bottom: 1rem; overflow-x: auto; padding-bottom: 0.5rem;"></div>
                 
                 <div style="display: flex; gap: 0.8rem;">
                     <input type="text" id="adv-input" placeholder="你想做什么？(例如：向北走、检查背包、攻击史莱姆)..." 
-                        style="flex: 1; padding: 1.2rem; font-size: 1.1rem; border-radius: 0.5rem; border: 1px solid var(--border); background: var(--bg-darker); color: white;"
+                        style="flex: 1; padding: 1.2rem 1.5rem; font-size: 1.2rem; border-radius: 0.5rem; border: 1px solid var(--border); background: var(--bg-darker); color: white;"
                         onkeydown="if(event.key === 'Enter') adventureAction(this.value)">
-                    <button onclick="adventureAction(document.getElementById('adv-input').value)" class="primary-btn" style="width: auto; padding: 0 2rem; font-size: 1.2rem;"><i data-lucide="send"></i></button>
+                    <button onclick="adventureAction(document.getElementById('adv-input').value)" class="primary-btn" style="width: auto; padding: 0 2.5rem; font-size: 1.3rem;"><i data-lucide="send"></i></button>
                 </div>
             </div>
         </div>
@@ -437,11 +444,6 @@ async function adventureAction(actionText) {
     renderAdventureUI(document.getElementById('content-area'));
 
     const apiKey = document.getElementById('apikey-input').value;
-    if (!apiKey && !window._hasDefaultKey) {
-        adventureState.messages.push({ role: 'assistant', content: "⚠️ 请先在左侧菜单「设置」中配置 API Key" });
-        renderAdventureUI(document.getElementById('content-area'));
-        return;
-    }
 
     document.getElementById('adv-loading').style.display = 'block';
 
@@ -562,13 +564,13 @@ async function doPdfToExcel() {
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
-            statusDiv.innerHTML = '✅ 转换成功！文件已下载。';
+            statusDiv.innerHTML = ' 转换成功！文件已下载。';
         } else {
             const err = await safeJson(response);
-            statusDiv.innerHTML = `❌ 失败: ${err.detail}`;
+            statusDiv.innerHTML = ` 失败: ${err.detail}`;
         }
     } catch (e) {
-        statusDiv.innerHTML = `❌ 网络错误: ${e.message}`;
+        statusDiv.innerHTML = ` 网络错误: ${e.message}`;
     }
 }
 
@@ -602,13 +604,13 @@ async function doImgToExcel() {
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
-            statusDiv.innerHTML = '✅ 转换成功！文件已下载。';
+            statusDiv.innerHTML = ' 转换成功！文件已下载。';
         } else {
             const err = await safeJson(response);
-            statusDiv.innerHTML = `❌ 失败: ${err.detail}`;
+            statusDiv.innerHTML = ` 失败: ${err.detail}`;
         }
     } catch (e) {
-        statusDiv.innerHTML = `❌ 网络错误: ${e.message}`;
+        statusDiv.innerHTML = ` 网络错误: ${e.message}`;
     }
 }
 
@@ -617,41 +619,41 @@ async function doImgToExcel() {
 function renderCreative(container) {
     container.innerHTML = `
         <div class="card">
-            <h3>✨ 创作工坊</h3>
+            <h3> 创作工坊</h3>
             <div style="margin-bottom: 1rem;">
                 <select id="creative-task" onchange="renderCreativeForm()" style="padding: 0.5rem; border-radius: 0.5rem; background: var(--bg-darker); color: white; border: 1px solid var(--border); width: 100%;">
-                    <optgroup label="🏢 职场办公">
-                        <option value="daily_report">📅 日报生成</option>
-                        <option value="weekly_report">📊 周报生成</option>
-                        <option value="email">📧 商务邮件</option>
-                        <option value="meeting_minutes">📝 会议纪要整理</option>
-                        <option value="excel_gen">📊 Excel 生成</option>
-                        <option value="okr_draft">🎯 OKR 起草</option>
+                    <optgroup label=" 职场办公">
+                        <option value="daily_report"> 日报生成</option>
+                        <option value="weekly_report"> 周报生成</option>
+                        <option value="email"> 商务邮件</option>
+                        <option value="meeting_minutes"> 会议纪要整理</option>
+                        <option value="excel_gen"> Excel 生成</option>
+                        <option value="okr_draft"> OKR 起草</option>
                     </optgroup>
-                    <optgroup label="🎓 学术教育">
-                        <option value="translation">🌍 翻译润色</option>
-                        <option value="essay_outline">📑 论文/文章大纲</option>
-                        <option value="study_plan">📚 学习计划制定</option>
+                    <optgroup label=" 学术教育">
+                        <option value="translation"> 翻译润色</option>
+                        <option value="essay_outline"> 论文/文章大纲</option>
+                        <option value="study_plan"> 学习计划制定</option>
                     </optgroup>
-                    <optgroup label="📱 新媒体运营">
-                        <option value="xhs_copy">📕 小红书文案</option>
-                        <option value="video_script">🎬 短视频脚本</option>
+                    <optgroup label=" 新媒体运营">
+                        <option value="xhs_copy"> 小红书文案</option>
+                        <option value="video_script"> 短视频脚本</option>
                     </optgroup>
-                    <optgroup label="🏠 生活助手">
-                        <option value="recipe_gen">🍳 食材生成菜谱</option>
-                        <option value="travel_plan">✈️ 旅行计划</option>
+                    <optgroup label=" 生活助手">
+                        <option value="recipe_gen"> 食材生成菜谱</option>
+                        <option value="travel_plan">️ 旅行计划</option>
                     </optgroup>
-                    <optgroup label="🚀 职场进阶">
-                        <option value="resume_polish">📄 简历优化</option>
-                        <option value="interview_prep">💼 面试模拟准备</option>
+                    <optgroup label=" 职场进阶">
+                        <option value="resume_polish"> 简历优化</option>
+                        <option value="interview_prep"> 面试模拟准备</option>
                     </optgroup>
-                    <optgroup label="📊 商业分析">
-                        <option value="swot_analysis">📈 SWOT 分析</option>
-                        <option value="contract_review">⚖️ 合同风险审查</option>
+                    <optgroup label=" 商业分析">
+                        <option value="swot_analysis"> SWOT 分析</option>
+                        <option value="contract_review">️ 合同风险审查</option>
                     </optgroup>
-                    <optgroup label="✍️ 写作辅助">
-                        <option value="title_gen">🔥 爆款标题生成</option>
-                        <option value="article_polish">✒️ 文章润色</option>
+                    <optgroup label="️ 写作辅助">
+                        <option value="title_gen"> 爆款标题生成</option>
+                        <option value="article_polish">️ 文章润色</option>
                     </optgroup>
                 </select>
             </div>
@@ -713,7 +715,7 @@ function renderCreativeForm() {
         `;
     }
 
-    html += `<button onclick="doCreativeGenerate()" class="primary-btn" style="margin-top: 1rem;">🚀 生成内容</button>`;
+    html += `<button onclick="doCreativeGenerate()" class="primary-btn" style="margin-top: 1rem;"> 生成内容</button>`;
     formDiv.innerHTML = html;
 }
 
@@ -722,7 +724,7 @@ async function doCreativeGenerate() {
     const resultDiv = document.getElementById('creative-result');
     const apiKey = document.getElementById('apikey-input').value;
 
-    if (!apiKey && !window._hasDefaultKey) { alert("请先配置 API Key"); return; }
+
 
     // Gather fields (All potential inputs)
     let fields = {};
@@ -761,7 +763,7 @@ async function doCreativeGenerate() {
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
-            resultDiv.innerHTML = '✅ Excel 文件已生成并下载。';
+            resultDiv.innerHTML = ' Excel 文件已生成并下载。';
             return;
         }
 
@@ -782,7 +784,7 @@ async function doCreativeGenerate() {
 function renderCode(container) {
     container.innerHTML = `
         <div class="card">
-            <h3>🖥️ 代码助手</h3>
+            <h3>️ 代码助手</h3>
             <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
                 <select id="code-lang" style="flex:1; padding: 0.5rem; background: var(--bg-darker); border: 1px solid var(--border); color: white;">
                     <option value="Python">Python</option>
@@ -802,14 +804,14 @@ function renderCode(container) {
                     <option value="VBA">VBA (Excel)</option>
                 </select>
                 <select id="code-task" style="flex:1; padding: 0.5rem; background: var(--bg-darker); border: 1px solid var(--border); color: white;">
-                    <option value="generate">✨ 生成代码</option>
-                    <option value="review">🔍 审查代码</option>
-                    <option value="debug">🐛 调试 Bug</option>
-                    <option value="explain">📖 解释代码</option>
+                    <option value="generate"> 生成代码</option>
+                    <option value="review"> 审查代码</option>
+                    <option value="debug"> 调试 Bug</option>
+                    <option value="explain"> 解释代码</option>
                 </select>
             </div>
             <textarea id="code-content" placeholder="描述需求或粘贴代码..." style="width: 100%; height: 200px; padding: 0.5rem; background: var(--bg-darker); border: 1px solid var(--border); color: white; margin-bottom: 1rem;"></textarea>
-            <button onclick="doCodeGenerate()" class="primary-btn">🚀 执行任务</button>
+            <button onclick="doCodeGenerate()" class="primary-btn"> 执行任务</button>
             <div id="code-result" style="margin-top: 1rem; background: #1e1e1e; padding: 1rem; border-radius: 0.5rem; overflow-x: auto;"></div>
         </div>
     `;
@@ -822,7 +824,7 @@ async function doCodeGenerate() {
     const resultDiv = document.getElementById('code-result');
     const apiKey = document.getElementById('apikey-input').value;
 
-    if (!apiKey && !window._hasDefaultKey) { alert("请先配置 API Key"); return; }
+
 
     resultDiv.innerHTML = '<span style="color: #9ca3af;">AI 正在思考...</span>';
 
@@ -861,7 +863,7 @@ async function doCodeGenerate() {
 function renderMarkdown(container) {
     container.innerHTML = `
         <div class="card" style="height: 100%; display: flex; flex-direction: column;">
-            <h3>📝 Markdown 编辑器</h3>
+            <h3> Markdown 编辑器</h3>
             <div style="flex: 1; display: flex; gap: 1rem; height: 0;">
                 <textarea id="md-editor" oninput="updateMdPreview()" style="flex: 1; height: 100%; padding: 1rem; background: var(--bg-darker); border: 1px solid var(--border); color: white; resize: none; font-family: monospace;"># Hello Markdown</textarea>
                 <div id="md-preview" style="flex: 1; height: 100%; padding: 1rem; border: 1px solid var(--border); overflow-y: auto; background: var(--bg-card);"></div>
@@ -880,15 +882,15 @@ function updateMdPreview() {
 function renderSystem(container) {
     container.innerHTML = `
         <div class="card">
-            <h3>💻 系统控制</h3>
+            <h3> 系统控制</h3>
             <div class="alert" style="background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.5); padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem; color: #fca5a5;">
-                ⚠️ 警告：此功能允许执行 Python 代码来操作文件系统。请谨慎使用。
+                ️ 警告：此功能允许执行 Python 代码来操作文件系统。请谨慎使用。
             </div>
             <textarea id="sys-query" placeholder="例如：把当前目录所有 .jpg 文件移动到 'Images' 文件夹" style="width: 100%; height: 100px; padding: 0.5rem; background: var(--bg-darker); border: 1px solid var(--border); color: white; margin-bottom: 1rem;"></textarea>
-            <button onclick="doSystemGenerate()" class="primary-btn">🛠️ 生成代码</button>
+            <button onclick="doSystemGenerate()" class="primary-btn">️ 生成代码</button>
             <div id="sys-code-area" style="margin-top: 1rem; display: none;">
                  <textarea id="sys-code" style="width: 100%; height: 200px; padding: 0.5rem; background: #1e1e1e; border: 1px solid var(--border); color: #a5b4fc; font-family: monospace;"></textarea>
-                 <button onclick="doSystemExecute()" class="primary-btn" style="background: #ef4444; margin-top: 0.5rem;">▶️ 确认执行</button>
+                 <button onclick="doSystemExecute()" class="primary-btn" style="background: #ef4444; margin-top: 0.5rem;">️ 确认执行</button>
             </div>
             <pre id="sys-output" style="background: black; padding: 1rem; margin-top: 1rem; display: none;"></pre>
         </div>
@@ -898,7 +900,7 @@ function renderSystem(container) {
 async function doSystemGenerate() {
     const query = document.getElementById('sys-query').value;
     const apiKey = document.getElementById('apikey-input').value;
-    if (!apiKey && !window._hasDefaultKey) { alert("请先配置 API Key"); return; }
+
 
     try {
         const response = await fetch('/api/system/generate_code', {
@@ -942,16 +944,16 @@ function renderTools(container) {
         <div class="tool-grid">
             <!-- Pomodoro Timer -->
             <div class="tool-card">
-                <h4>🍅 番茄钟</h4>
+                <h4> 番茄钟</h4>
                 <p style="color: var(--text-muted); margin-bottom: 1rem;">专注25分钟，休息5分钟，高效工作法</p>
                 <div class="pomodoro-display">
                     <div id="pomo-timer" class="timer">25:00</div>
-                    <div id="pomo-label" style="color: var(--text-muted); margin-top: 0.5rem;">🎯 专注模式</div>
+                    <div id="pomo-label" style="color: var(--text-muted); margin-top: 0.5rem;"> 专注模式</div>
                 </div>
                 <div class="pomodoro-btns">
-                    <button onclick="pomoStart()" id="pomo-start-btn">▶ 开始</button>
-                    <button onclick="pomoPause()">⏸ 暂停</button>
-                    <button onclick="pomoReset()">🔄 重置</button>
+                    <button onclick="pomoStart()" id="pomo-start-btn"> 开始</button>
+                    <button onclick="pomoPause()"> 暂停</button>
+                    <button onclick="pomoReset()"> 重置</button>
                 </div>
                 <div style="text-align: center; margin-top: 1rem; color: var(--text-muted); font-size: 0.85rem;">
                     已完成 <span id="pomo-count" style="color: var(--primary); font-weight: 700;">0</span> 个番茄
@@ -960,7 +962,7 @@ function renderTools(container) {
 
             <!-- Word Counter -->
             <div class="tool-card">
-                <h4>📊 字数统计</h4>
+                <h4> 字数统计</h4>
                 <p style="color: var(--text-muted); margin-bottom: 1rem;">实时统计字符数、词数、行数</p>
                 <textarea id="wc-input" oninput="updateWordCount()" placeholder="在此粘贴或输入文本..." style="width:100%; height:150px; padding:0.5rem; background:var(--bg-darker); border:1px solid var(--border); color:white; resize:vertical;"></textarea>
                 <div class="word-stats">
@@ -973,7 +975,7 @@ function renderTools(container) {
 
             <!-- Password Generator -->
             <div class="tool-card">
-                <h4>🔐 密码生成器</h4>
+                <h4> 密码生成器</h4>
                 <p style="color: var(--text-muted); margin-bottom: 1rem;">一键生成高强度随机密码</p>
                 <div class="password-output" id="pw-output" onclick="copyPassword()" title="点击复制">点击下方按钮生成</div>
                 <div style="display: flex; gap: 1rem; align-items: center; margin-bottom: 1rem;">
@@ -987,7 +989,7 @@ function renderTools(container) {
                     <label style="color: var(--text-muted); font-size: 0.85rem;"><input type="checkbox" id="pw-num" checked> 数字</label>
                     <label style="color: var(--text-muted); font-size: 0.85rem;"><input type="checkbox" id="pw-sym" checked> 符号</label>
                 </div>
-                <button onclick="generatePassword()" class="primary-btn" style="width: 100%;">🎲 生成密码</button>
+                <button onclick="generatePassword()" class="primary-btn" style="width: 100%;"> 生成密码</button>
             </div>
         </div>
     `;
@@ -1012,12 +1014,12 @@ function pomoStart() {
                 document.getElementById('pomo-count').textContent = pomoCount;
                 pomoIsWork = false;
                 pomoSeconds = 5 * 60;
-                document.getElementById('pomo-label').textContent = '☕ 休息模式';
+                document.getElementById('pomo-label').textContent = ' 休息模式';
                 document.getElementById('pomo-timer').classList.add('break-mode');
             } else {
                 pomoIsWork = true;
                 pomoSeconds = 25 * 60;
-                document.getElementById('pomo-label').textContent = '🎯 专注模式';
+                document.getElementById('pomo-label').textContent = ' 专注模式';
                 document.getElementById('pomo-timer').classList.remove('break-mode');
             }
             pomoStart(); // Auto-start next phase
@@ -1040,7 +1042,7 @@ function pomoReset() {
     updatePomoDisplay();
     const label = document.getElementById('pomo-label');
     const timer = document.getElementById('pomo-timer');
-    if (label) label.textContent = '🎯 专注模式';
+    if (label) label.textContent = ' 专注模式';
     if (timer) timer.classList.remove('break-mode');
 }
 
@@ -1085,7 +1087,7 @@ function copyPassword() {
     navigator.clipboard.writeText(pw).then(() => {
         const el = document.getElementById('pw-output');
         const orig = el.textContent;
-        el.textContent = '✅ 已复制到剪贴板!';
+        el.textContent = ' 已复制到剪贴板!';
         setTimeout(() => el.textContent = orig, 1500);
     });
 }
@@ -1095,13 +1097,13 @@ function copyPassword() {
 function renderPPT(container) {
     container.innerHTML = `
         <div class="card">
-            <h3>📽️ AI 生成 PPT</h3>
+            <h3>️ AI 生成 PPT</h3>
             <p style="color: var(--text-muted); margin-bottom: 1.5rem;">输入主题，一键生成演示文稿框架。</p>
             
             <div style="display: flex; gap: 0.5rem; margin-bottom: 1.5rem;">
                 <input type="text" id="ppt-topic" placeholder="例如：2026年人工智能发展趋势" 
                     style="flex: 1; padding: 0.8rem; border-radius: 0.5rem; border: 1px solid var(--border); background: var(--bg-darker); color: white;">
-                <button onclick="doGeneratePPTOutline()" class="primary-btn" style="width: auto;">🚀 生成大纲</button>
+                <button onclick="doGeneratePPTOutline()" class="primary-btn" style="width: auto;"> 生成大纲</button>
             </div>
             
             <div id="ppt-status" style="margin-bottom: 1rem;"></div>
@@ -1110,7 +1112,7 @@ function renderPPT(container) {
                 <h4 style="margin-bottom: 0.5rem;">大纲预览 (可编辑)</h4>
                 <textarea id="ppt-json" style="width: 100%; height: 300px; background: var(--bg-card); color: #a5b4fc; border: 1px solid var(--border); border-radius: 0.5rem; font-family: monospace; padding: 1rem;"></textarea>
                 <div style="margin-top: 1rem; text-align: right;">
-                    <button onclick="doCreatePPT()" class="primary-btn" style="width: auto;">📥 生成并下载 PPTX</button>
+                    <button onclick="doCreatePPT()" class="primary-btn" style="width: auto;"> 生成并下载 PPTX</button>
                 </div>
             </div>
         </div>
@@ -1120,7 +1122,7 @@ function renderPPT(container) {
 function renderViz(container) {
     container.innerHTML = `
         <div class="card">
-            <h3>📊 数据可视化</h3>
+            <h3> 数据可视化</h3>
             <p style="color: var(--text-muted); margin-bottom: 1.5rem;">上传表格数据，在线生成图表。</p>
             
             <input type="file" id="viz-file" accept=".csv, .xlsx, .xls" onchange="doUploadTable()" style="margin-bottom: 1rem;">
@@ -1148,17 +1150,17 @@ function renderViz(container) {
                                 <label style="display: block; color: var(--text-muted); margin-bottom: 0.5rem;">Y 轴 (数值序列)</label>
                                 <select class="viz-y-select modal-body" style="width: 100%; margin: 0;"></select>
                             </div>
-                            <button onclick="addVizYSeries()" class="primary-btn" style="padding: 0.6rem; background: var(--bg-darker); border: 1px solid var(--border); width: 42px; height: 42px; min-height: 42px;" title="添加数据序列">➕</button>
+                            <button onclick="addVizYSeries()" class="primary-btn" style="padding: 0.6rem; background: var(--bg-darker); border: 1px solid var(--border); width: 42px; height: 42px; min-height: 42px;" title="添加数据序列"></button>
                         </div>
                     </div>
                     
-                    <button onclick="doGenerateChart()" class="primary-btn" style="margin-top: 0.5rem;">🎨 生成图表</button>
+                    <button onclick="doGenerateChart()" class="primary-btn" style="margin-top: 0.5rem;"> 生成图表</button>
                 </div>
             
             <div id="viz-chart-actions" style="display: none; text-align: right; margin-bottom: 1rem; gap: 0.5rem; justify-content: flex-end;">
-                <button onclick="downloadChart('png')" class="primary-btn" style="padding: 0.5rem 1rem; font-size: 0.9rem; background: var(--bg-darker); border: 1px solid var(--border); width: auto;">⬇ 下载 PNG</button>
-                <button onclick="downloadChart('jpg')" class="primary-btn" style="padding: 0.5rem 1rem; font-size: 0.9rem; background: var(--bg-darker); border: 1px solid var(--border); width: auto;">⬇ 下载 JPG</button>
-                <button onclick="downloadChart('svg')" class="primary-btn" style="padding: 0.5rem 1rem; font-size: 0.9rem; background: var(--bg-darker); border: 1px solid var(--border); width: auto;">⬇ 下载 SVG</button>
+                <button onclick="downloadChart('png')" class="primary-btn" style="padding: 0.5rem 1rem; font-size: 0.9rem; background: var(--bg-darker); border: 1px solid var(--border); width: auto;"> 下载 PNG</button>
+                <button onclick="downloadChart('jpg')" class="primary-btn" style="padding: 0.5rem 1rem; font-size: 0.9rem; background: var(--bg-darker); border: 1px solid var(--border); width: auto;"> 下载 JPG</button>
+                <button onclick="downloadChart('svg')" class="primary-btn" style="padding: 0.5rem 1rem; font-size: 0.9rem; background: var(--bg-darker); border: 1px solid var(--border); width: auto;"> 下载 SVG</button>
             </div>
 
             <div id="viz-chart-container" style="margin-top: 0.5rem; height: 450px; display: none; background: var(--bg-card); border: 1px solid var(--border); border-radius: 0.5rem; padding: 1rem;">
@@ -1173,36 +1175,36 @@ function renderViz(container) {
 function renderMindMap(container) {
     container.innerHTML = `
         <div class="card">
-            <h3>🧠 思维导图 & 图表</h3>
+            <h3> 思维导图 & 图表</h3>
             <p style="color: var(--text-muted); margin-bottom: 1.5rem;">输入核心主题，AI 自动生成结构化导图或图表。</p>
             
             <div style="display: flex; gap: 0.5rem; margin-bottom: 0.5rem;">
                 <select id="mm-type" style="padding: 0.8rem; border-radius: 0.5rem; border: 1px solid var(--border); background: var(--bg-darker); color: white; width: 140px;">
-                    <option value="mindmap">🧠 思维导图</option>
-                    <option value="flowchart">➡️ 流程图</option>
-                    <option value="timeline">⏳ 时间轴</option>
-                    <option value="gantt">📅 甘特图</option>
-                    <option value="sequence">🔗 时序图</option>
-                    <option value="class">📦 类图</option>
-                    <option value="state">🔄 状态图</option>
-                    <option value="pie">🥧 饼图</option>
+                    <option value="mindmap"> 思维导图</option>
+                    <option value="flowchart">️ 流程图</option>
+                    <option value="timeline"> 时间轴</option>
+                    <option value="gantt"> 甘特图</option>
+                    <option value="sequence"> 时序图</option>
+                    <option value="class"> 类图</option>
+                    <option value="state"> 状态图</option>
+                    <option value="pie"> 饼图</option>
                 </select>
                 <input type="text" id="mm-topic" placeholder="例如：Python 学习路线" 
                     style="flex: 1; padding: 0.8rem; border-radius: 0.5rem; border: 1px solid var(--border); background: var(--bg-darker); color: white;">
-                <button onclick="doGenerateMindMap()" class="primary-btn" style="width: auto;">🚀 生成</button>
+                <button onclick="doGenerateMindMap()" class="primary-btn" style="width: auto;"> 生成</button>
             </div>
             
             <div id="mm-status" style="margin-bottom: 1rem;"></div>
             
             <div id="mm-container" style="display: none;">
                 <div class="mm-actions" style="text-align: right; margin-bottom: 0.5rem; gap: 0.5rem; display: flex; justify-content: flex-end; align-items: center;">
-                     <button onclick="toggleMmCode()" class="primary-btn" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background: var(--bg-darker); border: 1px solid var(--border); margin-right: auto;">📝 查看源码</button>
-                     <button onclick="downloadMindMap('svg')" class="primary-btn" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background: var(--bg-darker); border: 1px solid var(--border);">⬇ 下载 SVG</button>
-                     <button onclick="downloadMindMap('png')" class="primary-btn" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background: var(--bg-darker); border: 1px solid var(--border);">⬇ 下载 PNG</button>
+                     <button onclick="toggleMmCode()" class="primary-btn" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background: var(--bg-darker); border: 1px solid var(--border); margin-right: auto;"> 查看源码</button>
+                     <button onclick="downloadMindMap('svg')" class="primary-btn" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background: var(--bg-darker); border: 1px solid var(--border);"> 下载 SVG</button>
+                     <button onclick="downloadMindMap('png')" class="primary-btn" style="padding: 0.4rem 0.8rem; font-size: 0.85rem; background: var(--bg-darker); border: 1px solid var(--border);"> 下载 PNG</button>
                 </div>
                 <div id="mm-code-container" style="display: none; margin-bottom: 1rem;">
                     <textarea id="mm-code-editor" style="width: 100%; height: 200px; background: #1e1e1e; color: #a5b4fc; border: 1px solid var(--border); border-radius: 0.5rem; padding: 0.8rem; font-family: monospace; font-size: 0.9rem;"></textarea>
-                    <button onclick="applyMmCode()" class="primary-btn" style="margin-top: 0.5rem; width: auto; padding: 0.4rem 1rem;">▶ 重新渲染</button>
+                    <button onclick="applyMmCode()" class="primary-btn" style="margin-top: 0.5rem; width: auto; padding: 0.4rem 1rem;"> 重新渲染</button>
                 </div>
                 <div style="overflow: auto; border: 1px solid var(--border); border-radius: 0.5rem; padding: 1rem; background: var(--bg-card); min-height: 400px; position: relative;">
                     <div class="mermaid" id="mermaid-render" style="text-align: center;"></div>
@@ -1228,7 +1230,7 @@ function applyMmCode() {
         // Clear previous content
         renderDiv.innerHTML = '<div class="loading-spinner"></div> 渲染中...';
 
-        import('https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs').then(async (mermaid) => {
+        import('https://cdn.bootcdn.net/ajax/libs/mermaid/10.9.1/mermaid.esm.min.mjs').then(async (mermaid) => {
             mermaid.default.initialize({
                 startOnLoad: false,
                 theme: 'dark',
@@ -1244,7 +1246,7 @@ function applyMmCode() {
             } catch (err) {
                 console.error("Mermaid Render Error:", err);
                 if (errorDiv) {
-                    errorDiv.innerHTML = `<div>⚠️ 渲染失败：可能是语法有误。<br><small style="opacity: 0.7;">${err.message || '查看控制台了解详情'}</small></div>`;
+                    errorDiv.innerHTML = `<div>️ 渲染失败：可能是语法有误。<br><small style="opacity: 0.7;">${err.message || '查看控制台了解详情'}</small></div>`;
                     errorDiv.style.display = 'flex';
                 }
                 renderDiv.innerHTML = ''; // Clear spinner
@@ -1353,10 +1355,10 @@ async function fetchSearchResults() {
     const apiKey = document.getElementById('apikey-input').value;
 
     if (searchPage === 1) {
-        statusDiv.innerHTML = '🔍 正在联网搜索...';
+        statusDiv.innerHTML = ' 正在联网搜索...';
     } else {
         const btn = loadMoreBtn.querySelector('button');
-        if (btn) btn.innerText = '⏳ 加载中...';
+        if (btn) btn.innerText = ' 加载中...';
     }
 
     try {
@@ -1381,9 +1383,9 @@ async function fetchSearchResults() {
             // Update Status (Only on page 1)
             if (searchPage === 1) {
                 if (data.optimized_query && data.optimized_query !== lastQuery) {
-                    statusDiv.innerHTML = `✅ 已优化关键词：<span style="color: #a5b4fc; font-weight: bold;">${data.optimized_query}</span>`;
+                    statusDiv.innerHTML = ` 已优化关键词：<span style="color: #a5b4fc; font-weight: bold;">${data.optimized_query}</span>`;
                 } else {
-                    statusDiv.innerHTML = `✅ 搜索完成`;
+                    statusDiv.innerHTML = ` 搜索完成`;
                 }
 
                 if (apiKey && data.results.length > 0) {
@@ -1405,10 +1407,10 @@ async function fetchSearchResults() {
                 // Show Load More
                 loadMoreBtn.style.display = 'block';
                 const btn = loadMoreBtn.querySelector('button');
-                if (btn) btn.innerText = '👇 加载更多';
+                if (btn) btn.innerText = ' 加载更多';
             } else {
                 if (searchPage === 1) {
-                    statusDiv.innerHTML = `<span style="color: #ef4444;">❌ 未找到相关结果</span>`;
+                    statusDiv.innerHTML = `<span style="color: #ef4444;"> 未找到相关结果</span>`;
                 } else {
                     loadMoreBtn.style.display = 'none';
                     alert("没有更多结果了");
@@ -1416,10 +1418,10 @@ async function fetchSearchResults() {
             }
 
         } else {
-            statusDiv.innerHTML = `<span style="color: #ef4444;">❌ 搜索失败: ${data.detail}</span>`;
+            statusDiv.innerHTML = `<span style="color: #ef4444;"> 搜索失败: ${data.detail}</span>`;
         }
     } catch (e) {
-        statusDiv.innerHTML = `<span style="color: #ef4444;">❌ 网络错误: ${e.message}</span>`;
+        statusDiv.innerHTML = `<span style="color: #ef4444;"> 网络错误: ${e.message}</span>`;
     }
 }
 
@@ -1428,7 +1430,7 @@ async function doAiSummary(userQuery, results) {
     const summaryContent = document.getElementById('ai-summary-content');
 
     summaryCard.style.display = 'block';
-    summaryContent.innerHTML = '<span style="color: var(--text-muted);">✨ 正在阅读网页并总结答案...</span>';
+    summaryContent.innerHTML = '<span style="color: var(--text-muted);"> 正在阅读网页并总结答案...</span>';
 
     // Prepare Context
     const context = results.map((r, i) => `[${i + 1}] ${r.title}\n${r.body}`).join('\n\n');
@@ -1486,7 +1488,7 @@ function closeSettingsModal() {
     document.getElementById('settings-modal').classList.add('hidden');
 }
 
-function loadSettings() {
+async function loadSettings() {
     const providerSelect = document.getElementById('provider-select');
     const modelInput = document.getElementById('model-input');
     const apiKeyInput = document.getElementById('apikey-input');
@@ -1504,8 +1506,9 @@ function loadSettings() {
     baseUrlInput.value = localStorage.getItem('llm_base_url') || "";
     document.getElementById('sys-prompt-input').value = localStorage.getItem('llm_sys_prompt') || "";
 
-    // 从后端获取默认配置（不含 API Key），仅在用户未保存时使用
-    fetch('/api/defaults').then(r => safeJson(r)).then(defaults => {
+    // 从后端获取默认配置（不含 API Key）
+    try {
+        const defaults = await safeJson(await fetch('/api/defaults'));
         if (storedProvider === null && defaults.provider) providerSelect.value = defaults.provider;
         if (storedModel === null && defaults.model) modelInput.value = defaults.model;
         // 缓存默认 Key 状态，供所有功能函数判断
@@ -1516,10 +1519,10 @@ function loadSettings() {
         } else {
             apiKeyInput.placeholder = "请输入您的 API Key";
         }
-    }).catch(() => {
+    } catch (e) {
         // 后端不可用时使用硬编码 fallback（不含 Key）
         if (storedProvider === null) providerSelect.value = "OpenRouter";
-    });
+    }
 }
 
 function saveSettings() {
@@ -1538,7 +1541,7 @@ function saveSettings() {
     // Visual feedback
     const btn = document.querySelector('#settings-modal .primary-btn');
     const originalText = btn.innerText;
-    btn.innerText = "✅ 已保存";
+    btn.innerText = " 已保存";
     setTimeout(() => {
         btn.innerText = originalText;
         closeSettingsModal();
@@ -1670,7 +1673,7 @@ async function doPdfToWord() {
     const formData = new FormData();
     formData.append('file', fileInput.files[0]);
 
-    statusDiv.innerHTML = '<span>⏳ 正在转换中，请稍候...</span>';
+    statusDiv.innerHTML = '<span> 正在转换中，请稍候...</span>';
 
     try {
         const response = await fetch('/api/convert/pdf-to-word', {
@@ -1687,7 +1690,7 @@ async function doPdfToWord() {
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
-            statusDiv.innerHTML = '<span style="color: #4ade80;">✅ 转换成功，已自动下载</span>';
+            statusDiv.innerHTML = '<span style="color: #4ade80;"> 转换成功，已自动下载</span>';
         } else {
             const err = await safeJson(response);
             statusDiv.innerHTML = `<span style="color: #ef4444;">转换失败: ${err.detail}</span>`;
@@ -1711,7 +1714,7 @@ async function doImgToPdf() {
         formData.append('files', file);
     }
 
-    statusDiv.innerHTML = '<span>⏳ 正在处理中...</span>';
+    statusDiv.innerHTML = '<span> 正在处理中...</span>';
 
     try {
         const response = await fetch('/api/convert/img-to-pdf', {
@@ -1728,7 +1731,7 @@ async function doImgToPdf() {
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
-            statusDiv.innerHTML = '<span style="color: #4ade80;">✅ 合并成功，已自动下载</span>';
+            statusDiv.innerHTML = '<span style="color: #4ade80;"> 合并成功，已自动下载</span>';
         } else {
             const err = await safeJson(response);
             statusDiv.innerHTML = `<span style="color: #ef4444;">操作失败: ${err.detail}</span>`;
@@ -1753,12 +1756,9 @@ async function doGeneratePPTOutline() {
         statusDiv.innerHTML = '<span style="color: #fbbf24;">请输入主题</span>';
         return;
     }
-    if (!apiKey && !window._hasDefaultKey) {
-        statusDiv.innerHTML = '<span style="color: #fbbf24;">请先配置 API Key</span>';
-        return;
-    }
 
-    statusDiv.innerHTML = '<span>⏳ 正在构思大纲... (这可能需要几十秒)</span>';
+
+    statusDiv.innerHTML = '<span> 正在构思大纲... (这可能需要几十秒)</span>';
     previewDiv.style.display = 'none';
 
     try {
@@ -1777,7 +1777,7 @@ async function doGeneratePPTOutline() {
         const res = await safeJson(response);
 
         if (response.ok) {
-            statusDiv.innerHTML = '<span style="color: #4ade80;">✅ 大纲生成成功，请确认内容</span>';
+            statusDiv.innerHTML = '<span style="color: #4ade80;"> 大纲生成成功，请确认内容</span>';
             const jsonText = document.getElementById('ppt-json');
             jsonText.value = JSON.stringify(res.data, null, 2);
             previewDiv.style.display = 'block';
@@ -1796,7 +1796,7 @@ async function doCreatePPT() {
     try {
         const data = JSON.parse(jsonStr);
 
-        statusDiv.innerHTML = '<span>⏳ 正在生成 PPT 文件...</span>';
+        statusDiv.innerHTML = '<span> 正在生成 PPT 文件...</span>';
 
         const response = await fetch('/api/generate/ppt/create', {
             method: 'POST',
@@ -1813,7 +1813,7 @@ async function doCreatePPT() {
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
-            statusDiv.innerHTML = '<span style="color: #4ade80;">✅ PPT 下载成功！</span>';
+            statusDiv.innerHTML = '<span style="color: #4ade80;"> PPT 下载成功！</span>';
         } else {
             const err = await safeJson(response);
             statusDiv.innerHTML = `<span style="color: #ef4444;">生成文件失败: ${err.detail}</span>`;
@@ -1837,7 +1837,7 @@ async function doUploadTable() {
     const formData = new FormData();
     formData.append('file', fileInput.files[0]);
 
-    statusDiv.innerHTML = '<span>⏳ 正在解析数据...</span>';
+    statusDiv.innerHTML = '<span> 正在解析数据...</span>';
 
     try {
         const response = await fetch('/api/analyze/table', {
@@ -1848,7 +1848,7 @@ async function doUploadTable() {
 
         if (response.ok) {
             vizData = res;
-            statusDiv.innerHTML = `<span>✅ 已加载 ${res.total_rows} 行数据</span>`;
+            statusDiv.innerHTML = `<span> 已加载 ${res.total_rows} 行数据</span>`;
             configDiv.style.display = 'block';
 
             // Reset Y series
@@ -1859,7 +1859,7 @@ async function doUploadTable() {
                         <label style="display: block; color: var(--text-muted); margin-bottom: 0.5rem;">Y 轴 (数值序列)</label>
                         <select class="viz-y-select modal-body" style="width: 100%; margin: 0;"></select>
                     </div>
-                    <button onclick="addVizYSeries()" class="primary-btn" style="padding: 0.6rem; background: var(--bg-darker); border: 1px solid var(--border); width: 42px; height: 42px; min-height: 42px;" title="添加数据序列">➕</button>
+                    <button onclick="addVizYSeries()" class="primary-btn" style="padding: 0.6rem; background: var(--bg-darker); border: 1px solid var(--border); width: 42px; height: 42px; min-height: 42px;" title="添加数据序列"></button>
                 </div>
             `;
 
@@ -1906,7 +1906,7 @@ function addVizYSeries() {
                 ${optionsHtml}
             </select>
         </div>
-        <button onclick="this.parentElement.remove()" class="primary-btn" style="padding: 0.6rem; background: var(--bg-darker); border: 1px solid var(--border); width: 42px; height: 42px; min-height: 42px;" title="移除序列">❌</button>
+        <button onclick="this.parentElement.remove()" class="primary-btn" style="padding: 0.6rem; background: var(--bg-darker); border: 1px solid var(--border); width: 42px; height: 42px; min-height: 42px;" title="移除序列"></button>
     `;
     container.appendChild(newItem);
 }
@@ -2051,12 +2051,9 @@ async function doGenerateMindMap() {
         statusDiv.innerHTML = '<span style="color: #fbbf24;">请输入主题</span>';
         return;
     }
-    if (!apiKey && !window._hasDefaultKey) {
-        statusDiv.innerHTML = '<span style="color: #fbbf24;">请先配置 API Key</span>';
-        return;
-    }
 
-    statusDiv.innerHTML = '<span>⏳ 正在构思中... (这可能需要几十秒)</span>';
+
+    statusDiv.innerHTML = '<span> 正在构思中... (这可能需要几十秒)</span>';
     container.style.display = 'none';
     if (errorDiv) errorDiv.style.display = 'none';
 
@@ -2077,7 +2074,7 @@ async function doGenerateMindMap() {
         const res = await safeJson(response);
 
         if (response.ok) {
-            statusDiv.innerHTML = '<span style="color: #4ade80;">✅ 生成成功</span>';
+            statusDiv.innerHTML = '<span style="color: #4ade80;"> 生成成功</span>';
             container.style.display = 'block';
 
             // Update source code editor
@@ -2087,7 +2084,7 @@ async function doGenerateMindMap() {
             // Render Mermaid using the improved logic
             renderDiv.innerHTML = '<div class="loading-spinner"></div> 正在渲染图表...';
 
-            import('https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs').then(async (mermaid) => {
+            import('https://cdn.bootcdn.net/ajax/libs/mermaid/10.9.1/mermaid.esm.min.mjs').then(async (mermaid) => {
                 mermaid.default.initialize({
                     startOnLoad: false,
                     theme: 'dark',
@@ -2101,7 +2098,7 @@ async function doGenerateMindMap() {
                 } catch (err) {
                     console.error("Auto Render Error:", err);
                     if (errorDiv) {
-                        errorDiv.innerHTML = `<div>⚠️ 自动渲染失败：语法不标准。<br><small style="opacity: 0.7;">AI 可能生成了错误的语法。您可以尝试在“查看源码”中手动修正。</small></div>`;
+                        errorDiv.innerHTML = `<div>️ 自动渲染失败：语法不标准。<br><small style="opacity: 0.7;">AI 可能生成了错误的语法。您可以尝试在“查看源码”中手动修正。</small></div>`;
                         errorDiv.style.display = 'flex';
                     }
                     renderDiv.innerHTML = '';
@@ -2134,7 +2131,7 @@ function renderClone(container) {
 function renderCloneUpload(container) {
     container.innerHTML = `
         <div class="card">
-            <h3>👥 AI 角色克隆</h3>
+            <h3> AI 角色克隆</h3>
             <p style="color: var(--text-muted); margin-bottom: 1.5rem;">上传和那个 Ta 的聊天记录（支持 .txt, .pdf, .docx, .csv），AI 将深度模仿 Ta 的说话方式与你交流。</p>
             
             <div class="upload-zone" style="border: 2px dashed var(--border); padding: 2.5rem; border-radius: 1rem; text-align: center; background: var(--bg-darker); cursor: pointer;" onclick="document.getElementById('clone-file').click()">
@@ -2145,29 +2142,29 @@ function renderCloneUpload(container) {
             </div>
             
             <div class="responsive-grid-2col" style="margin-top: 1rem;">
-                <button onclick="doLocalScan()" class="primary-btn" style="background: var(--bg-darker); border: 1px solid var(--border); color: #a5b4fc;">🔍 自动扫描本地记录</button>
-                <button onclick="showClipboardImport()" class="primary-btn" style="background: var(--bg-darker); border: 1px solid var(--border); color: #10b981;">📋 剪贴板一键导入</button>
+                <button onclick="doLocalScan()" class="primary-btn" style="background: var(--bg-darker); border: 1px solid var(--border); color: #a5b4fc;"> 自动扫描本地记录</button>
+                <button onclick="showClipboardImport()" class="primary-btn" style="background: var(--bg-darker); border: 1px solid var(--border); color: #10b981;"> 剪贴板一键导入</button>
             </div>
 
             <div id="local-files-list" style="margin-top: 1rem; display: none;">
-                <h4 style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.5rem;">📁 发现的本地导出记录：</h4>
+                <h4 style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 0.5rem;"> 发现的本地导出记录：</h4>
                 <div id="found-files-container" style="max-height: 200px; overflow-y: auto; background: var(--bg-darker); border-radius: 0.5rem; border: 1px solid var(--border);"></div>
             </div>
 
             <div id="clipboard-import-zone" style="margin-top: 1rem; display: none;">
                 <textarea id="raw-chat-text" placeholder="在这里粘贴 QQ/微信 的聊天内容（Ctrl+A 全选聊天窗口内容并复制）..." 
                     style="width: 100%; height: 150px; background: var(--bg-darker); border: 1px solid var(--border); border-radius: 0.5rem; color: white; padding: 0.8rem; font-size: 0.9rem;"></textarea>
-                <button onclick="doClipboardImport()" class="primary-btn" style="width: 100%; margin-top: 0.5rem;">🚀 立即导入并克隆</button>
+                <button onclick="doClipboardImport()" class="primary-btn" style="width: 100%; margin-top: 0.5rem;"> 立即导入并克隆</button>
             </div>
 
             <div style="text-align: right; margin-top: 0.5rem;">
-                <button onclick="renderQQExportGuide()" class="primary-btn" style="width: auto; padding: 0.3rem 0.6rem; font-size: 0.8rem; background: transparent; border: 1px solid var(--border); color: var(--text-muted);">❓ 如何导出 QQ/微信聊天记录？</button>
+                <button onclick="renderQQExportGuide()" class="primary-btn" style="width: auto; padding: 0.3rem 0.6rem; font-size: 0.8rem; background: transparent; border: 1px solid var(--border); color: var(--text-muted);"> 如何导出 QQ/微信聊天记录？</button>
             </div>
             
             <div id="clone-status" style="margin-top: 1.5rem; text-align: center;"></div>
             
             <div style="margin-top: 2rem; padding: 1rem; background: rgba(99, 102, 241, 0.1); border-radius: 0.5rem; border: 1px solid rgba(99, 102, 241, 0.2);">
-                <h4 style="margin-top: 0; color: #a5b4fc;">💡 小贴士</h4>
+                <h4 style="margin-top: 0; color: #a5b4fc;"> 小贴士</h4>
                 <ul style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 0;">
                     <li>提供至少 50 条以上的对话记录效果更佳。</li>
                     <li>记录中应包含明显的语气特征和常用词汇。</li>
@@ -2186,10 +2183,7 @@ async function doCloneAnalyze(input) {
     const statusDiv = document.getElementById('clone-status');
     const apiKey = document.getElementById('apikey-input').value;
 
-    if (!apiKey && !window._hasDefaultKey) {
-        alert("请先配置 API Key");
-        return;
-    }
+
 
     statusDiv.innerHTML = '<span class="loading-spinner"></span> 正在深度分析 Ta 的说话风格，请稍候...';
 
@@ -2212,7 +2206,7 @@ async function doCloneAnalyze(input) {
         if (response.ok) {
             cloneState.systemPrompt = data.system_prompt;
             cloneState.history = [];
-            statusDiv.innerHTML = '✅ 分析完成！正在进入对话...';
+            statusDiv.innerHTML = ' 分析完成！正在进入对话...';
             setTimeout(() => loadPage('clone'), 1000); // Reload to show chat UI
         } else {
             statusDiv.innerHTML = `<span style="color: #ef4444;">分析失败: ${data.detail}</span>`;
@@ -2230,7 +2224,7 @@ function renderCloneChat(container) {
                     <div style="width: 10px; height: 10px; background: #60a5fa; border-radius: 50%;"></div>
                     <span style="font-weight: 600;">已成功克隆 Ta 的语癖</span>
                 </div>
-                <button onclick="resetClone()" class="primary-btn" style="width: auto; padding: 0.3rem 0.6rem; font-size: 0.8rem; background: var(--bg-darker); border: 1px solid var(--border);">🔄 重置角色</button>
+                <button onclick="resetClone()" class="primary-btn" style="width: auto; padding: 0.3rem 0.6rem; font-size: 0.8rem; background: var(--bg-darker); border: 1px solid var(--border);"> 重置角色</button>
             </div>
 
             <div id="clone-chat-history" style="flex: 1; overflow-y: auto; margin-bottom: 1rem; padding-right: 0.5rem;">
@@ -2362,7 +2356,7 @@ async function doLocalScan() {
         const data = await safeJson(response);
 
         if (data.files && data.files.length > 0) {
-            statusDiv.innerHTML = `✅ 扫描完成，发现 ${data.files.length} 个可能的记录文件`;
+            statusDiv.innerHTML = ` 扫描完成，发现 ${data.files.length} 个可能的记录文件`;
             listDiv.style.display = 'block';
             container.innerHTML = data.files.map(f => `
                 <div onclick="importLocalFile('${f.path.replace(/\\/g, '\\\\')}')" style="padding: 0.8rem; border-bottom: 1px solid var(--border); cursor: pointer; display: flex; justify-content: space-between; align-items: center; transition: background 0.2s;" onmouseover="this.style.background='rgba(99,102,241,0.1)'" onmouseout="this.style.background='transparent'">
@@ -2374,11 +2368,11 @@ async function doLocalScan() {
                 </div>
             `).join('');
         } else {
-            statusDiv.innerHTML = '❌ 未发现自动导出的 .txt 文档，请尝试手动导出。';
+            statusDiv.innerHTML = ' 未发现自动导出的 .txt 文档，请尝试手动导出。';
             listDiv.style.display = 'none';
         }
     } catch (e) {
-        statusDiv.innerHTML = `❌ 扫描过程中出错: ${e.message}`;
+        statusDiv.innerHTML = ` 扫描过程中出错: ${e.message}`;
     }
 }
 
@@ -2386,10 +2380,7 @@ async function importLocalFile(path) {
     const statusDiv = document.getElementById('clone-status');
     const apiKey = document.getElementById('apikey-input').value;
 
-    if (!apiKey && !window._hasDefaultKey) {
-        alert("请先配置 API Key");
-        return;
-    }
+
 
     statusDiv.innerHTML = '<span class="loading-spinner"></span> 正在从本地文件提取特征，请稍候...';
 
@@ -2412,7 +2403,7 @@ async function importLocalFile(path) {
         if (response.ok) {
             cloneState.systemPrompt = data.system_prompt;
             cloneState.history = [];
-            statusDiv.innerHTML = '✅ 角色解析成功！';
+            statusDiv.innerHTML = ' 角色解析成功！';
             setTimeout(() => loadPage('clone'), 1000);
         } else {
             statusDiv.innerHTML = `<span style="color: #ef4444;">解析失败: ${data.detail}</span>`;
@@ -2437,10 +2428,7 @@ async function doClipboardImport() {
     const statusDiv = document.getElementById('clone-status');
     const apiKey = document.getElementById('apikey-input').value;
 
-    if (!apiKey && !window._hasDefaultKey) {
-        alert("请先配置 API Key");
-        return;
-    }
+
 
     statusDiv.innerHTML = '<span class="loading-spinner"></span> 正在分析粘贴的内容，请稍候...';
 
@@ -2463,7 +2451,7 @@ async function doClipboardImport() {
         if (response.ok) {
             cloneState.systemPrompt = data.system_prompt;
             cloneState.history = [];
-            statusDiv.innerHTML = '✅ 剪贴板内容解析成功！';
+            statusDiv.innerHTML = ' 剪贴板内容解析成功！';
             setTimeout(() => loadPage('clone'), 1000);
         } else {
             statusDiv.innerHTML = `<span style="color: #ef4444;">分析失败: ${data.detail}</span>`;
@@ -2478,12 +2466,12 @@ function renderQQExportGuide() {
     contentArea.innerHTML = `
         <div class="card">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-                <h3 style="margin: 0;">📘 聊天记录导出指南</h3>
-                <button onclick="loadPage('clone')" class="primary-btn" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem;">⬅ 返回上传</button>
+                <h3 style="margin: 0;"> 聊天记录导出指南</h3>
+                <button onclick="loadPage('clone')" class="primary-btn" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.85rem;"> 返回上传</button>
             </div>
 
             <div class="guide-section" style="margin-bottom: 2rem;">
-                <h4 style="color: #60a5fa; border-left: 4px solid #60a5fa; padding-left: 0.5rem; margin-bottom: 1rem;">📱 手机端 (推荐)</h4>
+                <h4 style="color: #60a5fa; border-left: 4px solid #60a5fa; padding-left: 0.5rem; margin-bottom: 1rem;"> 手机端 (推荐)</h4>
                 <div style="background: var(--bg-darker); padding: 1.5rem; border-radius: 0.75rem; border: 1px solid var(--border);">
                     <ol style="margin: 0; padding-left: 1.2rem; color: var(--text-main); line-height: 1.8;">
                         <li>打开 **QQ 手机版**，进入 **[设置]**</li>
@@ -2496,7 +2484,7 @@ function renderQQExportGuide() {
             </div>
 
             <div class="guide-section" style="margin-bottom: 2rem;">
-                <h4 style="color: #a5b4fc; border-left: 4px solid #a5b4fc; padding-left: 0.5rem; margin-bottom: 1rem;">💻 电脑端 (手动导出)</h4>
+                <h4 style="color: #a5b4fc; border-left: 4px solid #a5b4fc; padding-left: 0.5rem; margin-bottom: 1rem;"> 电脑端 (手动导出)</h4>
                 <div style="background: var(--bg-darker); padding: 1.5rem; border-radius: 0.75rem; border: 1px solid var(--border);">
                     <p style="margin-bottom: 1rem; color: var(--text-muted);">如果你习惯使用电脑版 QQ：</p>
                     <ol style="margin: 0; padding-left: 1.2rem; color: var(--text-main); line-height: 1.8;">
@@ -2510,7 +2498,7 @@ function renderQQExportGuide() {
             </div>
 
             <div class="guide-section">
-                <h4 style="color: #10b981; border-left: 4px solid #10b981; padding-left: 0.5rem; margin-bottom: 1rem;">💬 微信导出说明</h4>
+                <h4 style="color: #10b981; border-left: 4px solid #10b981; padding-left: 0.5rem; margin-bottom: 1rem;"> 微信导出说明</h4>
                 <div style="background: var(--bg-darker); padding: 1.5rem; border-radius: 0.75rem; border: 1px solid var(--border);">
                     <p style="color: var(--text-main); line-height: 1.6;">微信电脑版暂不支持直接导出 .txt。建议：</p>
                 </ul>
@@ -2524,7 +2512,7 @@ function renderQQExportGuide() {
 function renderExcel(container) {
     container.innerHTML = `
         <div class="card">
-            <h3>📊 Excel 智能助手</h3>
+            <h3> Excel 智能助手</h3>
             <p style="color: var(--text-muted); margin-bottom: 1.5rem;">
                 上传 Excel 文件，用自然语言并在 AI 的帮助下进行数据处理、清洗、统计或拆分。
             </p>
@@ -2543,18 +2531,18 @@ function renderExcel(container) {
                             style="width: 100%; height: 150px; padding: 0.8rem; background: var(--bg-darker); border: 1px solid var(--border); color: white; border-radius: 0.5rem; line-height: 1.6;"></textarea>
                     </div>
 
-                    <button onclick="doExcelProcess()" class="primary-btn">🚀 开始处理</button>
+                    <button onclick="doExcelProcess()" class="primary-btn"> 开始处理</button>
                     <div id="excel-status" style="margin-top: 1rem;"></div>
                 </div>
 
                 <!-- Right: Tips -->
                 <div style="background: rgba(30, 41, 59, 0.5); padding: 1.5rem; border-radius: 0.5rem; border: 1px solid var(--border);">
-                    <h4 style="margin-top: 0; color: var(--primary);">💡 使用技巧</h4>
+                    <h4 style="margin-top: 0; color: var(--primary);"> 使用技巧</h4>
                     <ul style="color: var(--text-muted); line-height: 1.8; padding-left: 1.2rem;">
                         <li>描述越清晰，结果越准确。</li>
                         <li>支持多步操作，例如："先按 A 列排序，然后计算 B 列总和"。</li>
                         <li>可以通过描述新建 Sheet 来保存统计结果。</li>
-                        <li>⚠️ AI 将生成并执行 Python 代码，请检查结果是否符合预期。</li>
+                        <li>️ AI 将生成并执行 Python 代码，请检查结果是否符合预期。</li>
                     </ul>
                 </div>
             </div>
@@ -2571,7 +2559,7 @@ async function doExcelProcess() {
 
     if (fileInput.files.length === 0) { alert("请选择文件"); return; }
     if (!instruction.trim()) { alert("请输入处理需求"); return; }
-    if (!apiKey && !window._hasDefaultKey) { alert("请先配置 API Key"); return; }
+
 
     const file = fileInput.files[0];
     const formData = new FormData();
@@ -2601,13 +2589,13 @@ async function doExcelProcess() {
             document.body.appendChild(a);
             a.click();
             window.URL.revokeObjectURL(url);
-            statusDiv.innerHTML = '✅ 处理成功！文件已下载。';
+            statusDiv.innerHTML = ' 处理成功！文件已下载。';
         } else {
             const err = await safeJson(response);
-            statusDiv.innerHTML = `<div style="color: #fca5a5; background: rgba(127, 29, 29, 0.2); padding: 1rem; border-radius: 0.5rem; white-space: pre-wrap;">❌ 失败: ${err.detail}</div>`;
+            statusDiv.innerHTML = `<div style="color: #fca5a5; background: rgba(127, 29, 29, 0.2); padding: 1rem; border-radius: 0.5rem; white-space: pre-wrap;"> 失败: ${err.detail}</div>`;
         }
     } catch (e) {
-        statusDiv.innerHTML = `❌ 网络错误: ${e.message}`;
+        statusDiv.innerHTML = ` 网络错误: ${e.message}`;
     }
 }
 
