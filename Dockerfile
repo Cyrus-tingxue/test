@@ -12,7 +12,7 @@ RUN mkdir -p /app/data
 # 默认配置（API Key 请通过 docker run -e DEFAULT_API_KEY=xxx 传入，勿写在镜像中）
 ENV DEFAULT_PROVIDER=OpenRouter
 ENV DEFAULT_MODEL=arcee-ai/trinity-large-preview:free
-ENV DEFAULT_API_KEY=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
+ENV DEFAULT_API_KEY=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
 
 EXPOSE 8000
 
