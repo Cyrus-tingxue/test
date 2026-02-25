@@ -1,0 +1,26 @@
+services:
+  fastapi:
+    build: .
+    container_name: office-ai-mate-api
+    restart: unless-stopped
+    environment:
+      - DEFAULT_PROVIDER=OpenRouter
+      - DEFAULT_MODEL=arcee-ai/trinity-large-preview:free
+      - DEFAULT_API_KEY=
+    volumes:
+      - app_data:/app/data
+
+  nginx:
+    image: nginx:alpine
+    container_name: office-ai-mate-nginx
+    restart: unless-stopped
+    ports:
+      - "8000:80"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./static:/usr/share/nginx/html:ro
+    depends_on:
+      - fastapi
+
+volumes:
+  app_data:

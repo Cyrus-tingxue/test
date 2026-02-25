@@ -5,3 +5,5 @@ __pycache__/
 .gitignore
 data/
 *.db
+nginx/
+docker-compose.yml

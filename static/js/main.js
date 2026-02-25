@@ -2103,8 +2103,20 @@ async function doGenerateMindMap() {
             // Render Mermaid using the improved logic
             renderDiv.innerHTML = '<div class="loading-spinner"></div> 正在渲染图表...';
 
-            import('https://cdn.bootcdn.net/ajax/libs/mermaid/10.9.1/mermaid.esm.min.mjs').then(async (mermaid) => {
-                mermaid.default.initialize({
+            // 加载 Mermaid（UMD 版本，避免 ESM 相对路径问题）
+            const loadMermaid = () => {
+                return new Promise((resolve, reject) => {
+                    if (window.mermaid) { resolve(window.mermaid); return; }
+                    const script = document.createElement('script');
+                    script.src = 'https://cdn.bootcdn.net/ajax/libs/mermaid/10.9.1/mermaid.min.js';
+                    script.onload = () => resolve(window.mermaid);
+                    script.onerror = () => reject(new Error('Mermaid.js 加载失败'));
+                    document.head.appendChild(script);
+                });
+            };
+
+            loadMermaid().then(async (mermaid) => {
+                mermaid.initialize({
                     startOnLoad: false,
                     theme: 'dark',
                     securityLevel: 'loose'
@@ -2112,16 +2124,18 @@ async function doGenerateMindMap() {
 
                 try {
                     const id = 'mermaid-svg-gen-' + Date.now();
-                    const { svg } = await mermaid.default.render(id, res.code);
+                    const { svg } = await mermaid.render(id, res.code);
                     renderDiv.innerHTML = svg;
                 } catch (err) {
                     console.error("Auto Render Error:", err);
                     if (errorDiv) {
-                        errorDiv.innerHTML = `<div>️ 自动渲染失败：语法不标准。<br><small style="opacity: 0.7;">AI 可能生成了错误的语法。您可以尝试在“查看源码”中手动修正。</small></div>`;
+                        errorDiv.innerHTML = `<div>️ 自动渲染失败：语法不标准。<br><small style="opacity: 0.7;">AI 可能生成了错误的语法。您可以尝试在"查看源码"中手动修正。</small></div>`;
                         errorDiv.style.display = 'flex';
                     }
                     renderDiv.innerHTML = '';
                 }
+            }).catch(err => {
+                renderDiv.innerHTML = `<span style="color: #ef4444;">Mermaid 库加载失败: ${err.message}</span>`;
             });
 
         } else {
