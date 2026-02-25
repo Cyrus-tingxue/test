@@ -48,7 +48,7 @@ export const Login = () => {
     return (
         <div style={{
             display: 'flex', alignItems: 'flex-start', justifyContent: 'center',
-            minHeight: '100vh', minHeight: '100dvh', backgroundColor: 'var(--bg-dark)', margin: 0,
+            minHeight: '100dvh', backgroundColor: 'var(--bg-dark)', margin: 0,
             fontFamily: "'Inter', system-ui, sans-serif", overflowY: 'auto', position: 'relative',
             padding: '2rem 1rem', boxSizing: 'border-box'
         }}>

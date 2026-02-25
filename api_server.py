@@ -1,12 +1,12 @@
 import os
 import time
 import logging
-import uvicorn
+from dotenv import load_dotenv
+load_dotenv()  # 加载 .env 文件到环境变量
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.staticfiles import StaticFiles
 
 # --- 导入拆分的路由模块 ---
 from routes import search, chat, generate, convert, persona, system, game, code, auth
@@ -27,10 +27,11 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Office AI Mate Backend", lifespan=lifespan)
 
-# 处理跨域
+# 处理跨域（生产环境请根据实际域名收紧）
+CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "http://localhost:5173,http://localhost:8000").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -88,9 +89,6 @@ app.include_router(persona.router, prefix="/api/persona")
 app.include_router(system.router, prefix="/api/system")
 app.include_router(game.router, prefix="/api/game")
 
-
-# 静态文件挂载放最后，避免拦截 API 路由 (/api/*)
-app.mount("/", StaticFiles(directory="static", html=True), name="static")
 
 if __name__ == "__main__":
     import uvicorn

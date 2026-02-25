@@ -1,13 +1,19 @@
 import os
 import time
-from datetime import datetime, timedelta
+import logging
+from datetime import datetime, timedelta, timezone
 import jwt
 import bcrypt
 from fastapi import HTTPException, Security, Depends
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-# JWT 配置项 (生成环境应使用强复杂的长随机字符串并放入环境变量)
-SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "office-ai-mate-secret-development-key-fallback")
+logger = logging.getLogger("office-ai-mate.security")
+
+# JWT 配置项
+SECRET_KEY = os.environ.get("JWT_SECRET_KEY", "")
+if not SECRET_KEY:
+    SECRET_KEY = "office-ai-mate-secret-development-key-fallback"
+    logger.warning("⚠️  JWT_SECRET_KEY 未设置，使用不安全的默认值！生产环境请务必配置！")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # Token 默认过期时间为 7 天
 
@@ -26,9 +32,9 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None) -> s
     to_encode = data.copy()
     
     if expires_delta:
-        expire = datetime.utcnow() + expires_delta
+        expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
         
     to_encode.update({"exp": expire})
     # 包含了 username 和 exp 两类 claims

@@ -5,8 +5,9 @@ import uuid
 import tempfile
 import sys
 import subprocess
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form
+from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Depends
 from fastapi.responses import JSONResponse, StreamingResponse
+from security import get_current_user
 
 from schemas import CodeRequest
 from core_helpers import resolve_api_key, resolve_model, keepalive_llm_stream, TEMP_DOWNLOADS
@@ -15,7 +16,7 @@ from utils.llm_client import acall_llm_stream
 router = APIRouter()
 
 @router.post("/generate")
-async def generate_code(request: CodeRequest):
+async def generate_code(request: CodeRequest, user: dict = Depends(get_current_user)):
     try:
         role_map = {
             "generate": "你是一个资深程序员。请根据需求生成高质量、可运行的代码。",
@@ -45,10 +46,12 @@ async def process_excel(
     file: UploadFile = File(...),
     instruction: str = Form(...),
     provider: str = Form("OpenRouter"),
-    model: str = Form("gpt-3.5-turbo"),
+    model: str = Form(""),
     api_key: str = Form(""),
-    base_url: str = Form(None)
+    base_url: str = Form(None),
+    user: dict = Depends(get_current_user)
 ):
+    input_path = None
     try:
         import pandas as pd
         api_key = resolve_api_key(api_key)
@@ -101,6 +104,11 @@ async def process_excel(
                     raise Exception(f"代码执行失败:\n{result.stderr}\n\n生成的代码:\n{final_code}")
             except subprocess.TimeoutExpired:
                 raise Exception("处理超时 (60s)")
+            finally:
+                for p in (code_path, input_path):
+                    if p and os.path.exists(p):
+                        try: os.remove(p)
+                        except OSError: pass
             
             if os.path.exists(output_path):
                 file_id = str(uuid.uuid4())
@@ -116,6 +124,10 @@ async def process_excel(
 
         return StreamingResponse(keepalive_llm_stream(provider=provider, model=model, api_key=api_key, messages=messages, process_fn=process_code_and_run, **extra), media_type="application/json")
     except Exception as e:
-        import traceback
-        traceback.print_exc()
+        # 异常路径也清理临时输入文件
+        if input_path and os.path.exists(input_path):
+            try: os.remove(input_path)
+            except OSError: pass
+        import logging
+        logging.getLogger("office-ai-mate.code").error(f"Excel 处理失败: {e}", exc_info=True)
         return JSONResponse(status_code=500, content={"detail": str(e)})

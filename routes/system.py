@@ -4,8 +4,9 @@ import io
 import traceback
 import platform
 from contextlib import redirect_stdout
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
+from security import get_current_user
 
 from schemas import SystemRequest, SystemExecuteRequest
 from core_helpers import resolve_api_key, resolve_model, keepalive_llm_stream
@@ -13,7 +14,7 @@ from core_helpers import resolve_api_key, resolve_model, keepalive_llm_stream
 router = APIRouter()
 
 @router.post("/generate_code")
-async def system_generate_code(request: SystemRequest):
+async def system_generate_code(request: SystemRequest, user: dict = Depends(get_current_user)):
     try:
         _SYSTEM_PROMPT = """
         你是一个精通 Python 系统操作的 AI 助手。
@@ -60,7 +61,7 @@ async def system_generate_code(request: SystemRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.post("/execute_code")
-async def system_execute_code(request: SystemExecuteRequest):
+async def system_execute_code(request: SystemExecuteRequest, user: dict = Depends(get_current_user)):
     try:
         # SECURITY: Needs authentication and sandboxing in production
         code = request.code

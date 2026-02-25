@@ -130,7 +130,7 @@ async def generate_creative_upload(
     task: str = Form(...),
     content: str = Form(""),
     provider: str = Form("OpenRouter"),
-    model: str = Form("gpt-3.5-turbo"),
+    model: str = Form(""),
     api_key: str = Form(""),
     base_url: str = Form(None),
     receiver: str = Form(None),

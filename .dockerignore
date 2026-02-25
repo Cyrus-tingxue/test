@@ -1,9 +1,15 @@
 venv/
+.venv/
 __pycache__/
 *.pyc
 .git/
 .gitignore
+.gemini/
 data/
 *.db
 nginx/
 docker-compose.yml
+.env
+.env.*
+!.env.example
+frontend/node_modules/

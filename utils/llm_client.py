@@ -7,18 +7,12 @@ OpenAI 兼容平台（SiliconCloud/OpenRouter）。
 
 from __future__ import annotations
 
-import os
 from typing import Generator, Any, AsyncGenerator
 
 import litellm
-from config import PROVIDER_ENV_KEY, PROVIDER_BASE_URL, PROVIDER_MODEL_PREFIX
+from config import PROVIDER_BASE_URL, PROVIDER_MODEL_PREFIX
 
 
-def _set_api_key(provider: str, api_key: str) -> None:
-    """将 API Key 注入对应的环境变量，供 LiteLLM 使用。"""
-    env_var = PROVIDER_ENV_KEY.get(provider)
-    if env_var:
-        os.environ[env_var] = api_key
 
 
 def _resolve_model(provider: str, model: str, api_base: str | None) -> str:
@@ -41,7 +35,7 @@ def _resolve_model(provider: str, model: str, api_base: str | None) -> str:
     return model
 
 
-def _build_kwargs(provider: str, model: str, messages: list[dict[str, Any]], **extra) -> dict:
+def _build_kwargs(provider: str, model: str, api_key: str, messages: list[dict[str, Any]], **extra) -> dict:
     """构造 LiteLLM completion() 的关键字参数。"""
     # 确定 api_base
     api_base = extra.pop("api_base", None) or PROVIDER_BASE_URL.get(provider)
@@ -49,7 +43,7 @@ def _build_kwargs(provider: str, model: str, messages: list[dict[str, Any]], **e
     # 解析最终模型名
     resolved_model = _resolve_model(provider, model, api_base)
 
-    kwargs: dict = {"model": resolved_model, "messages": messages, **extra}
+    kwargs: dict = {"model": resolved_model, "messages": messages, "api_key": api_key, **extra}
     if api_base:
         kwargs["api_base"] = api_base
     return kwargs
@@ -63,8 +57,7 @@ def call_llm(
     **extra,
 ) -> str:
     """同步调用 LLM 并返回完整回复文本。"""
-    _set_api_key(provider, api_key)
-    kwargs = _build_kwargs(provider, model, messages, **extra)
+    kwargs = _build_kwargs(provider, model, api_key, messages, **extra)
     response = litellm.completion(**kwargs)
     return response.choices[0].message.content
 
@@ -77,8 +70,7 @@ def call_llm_stream(
     **extra,
 ) -> Generator[str, None, None]:
     """流式调用 LLM，逐块产出文本（用于聊天界面实时显示）。"""
-    _set_api_key(provider, api_key)
-    kwargs = _build_kwargs(provider, model, messages, stream=True, **extra)
+    kwargs = _build_kwargs(provider, model, api_key, messages, stream=True, **extra)
     response = litellm.completion(**kwargs)
     for chunk in response:
         delta = chunk.choices[0].delta
@@ -93,8 +85,7 @@ async def acall_llm(
     **extra,
 ) -> str:
     """异步调用 LLM 并返回完整回复文本。"""
-    _set_api_key(provider, api_key)
-    kwargs = _build_kwargs(provider, model, messages, **extra)
+    kwargs = _build_kwargs(provider, model, api_key, messages, **extra)
     response = await litellm.acompletion(**kwargs)
     return response.choices[0].message.content
 
@@ -106,8 +97,7 @@ async def acall_llm_stream(
     **extra,
 ) -> AsyncGenerator[str, None]:
     """流式异步调用 LLM，逐块产出文本。"""
-    _set_api_key(provider, api_key)
-    kwargs = _build_kwargs(provider, model, messages, stream=True, **extra)
+    kwargs = _build_kwargs(provider, model, api_key, messages, stream=True, **extra)
     response = await litellm.acompletion(**kwargs)
     async for chunk in response:
         delta = chunk.choices[0].delta

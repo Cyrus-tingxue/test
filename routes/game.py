@@ -1,11 +1,13 @@
 import json
 import re
+import logging
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 
 from schemas import GameRequest
 from core_helpers import resolve_api_key, resolve_model, keepalive_llm_stream
 
+logger = logging.getLogger("office-ai-mate.game")
 router = APIRouter()
 
 @router.post("/adventure")
@@ -89,5 +91,5 @@ Output JSON format ONLY:
             media_type="application/json"
         )
     except Exception as e:
-        print(f"Adventure Error: {e}")
+        logger.error(f"Adventure Error: {e}")
         return JSONResponse(status_code=500, content={"detail": str(e)})

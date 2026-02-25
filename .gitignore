@@ -62,9 +62,24 @@ htmlcov/
 .pytest_cache/
 
 # ===========================
+# Node.js / 前端
+# ===========================
+node_modules/
+frontend/dist/
+frontend/build.log
+frontend/build_error.log
+
+# ===========================
 # Docker
 # ===========================
 docker-compose.override.yml
+
+# ===========================
+# AI 工具
+# ===========================
+.gemini/
+.agents/
+.agent/
 
 # ===========================
 # 其他

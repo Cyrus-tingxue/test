@@ -1,5 +1,6 @@
 import os
 import time
+import asyncio
 import random
 import logging
 from fastapi import APIRouter, Request
@@ -146,7 +147,7 @@ async def search(request: SearchRequest, raw_request: Request):
 
     if bs4_module:
         try:
-            time.sleep(random.uniform(0.5, 1.5))
+            await asyncio.sleep(random.uniform(0.5, 1.5))
             page = request.page
             params = {"wd": optimized_query}
             headers = BASE_HEADERS.copy()
@@ -156,7 +157,7 @@ async def search(request: SearchRequest, raw_request: Request):
             resp_text = ""
             if curl_cffi_installed:
                 try:
-                    async with AsyncSession(impersonate="chrome120", verify=False, timeout=10) as client:
+                    async with AsyncSession(impersonate="chrome120", timeout=10) as client:
                         resp = await client.get("https://www.baidu.com/s", params=params, headers=headers)
                         resp_text = resp.text
                 except Exception as cf_e:
@@ -164,7 +165,7 @@ async def search(request: SearchRequest, raw_request: Request):
             
             if not resp_text and httpx_module:
                 headers["User-Agent"] = random.choice(USER_AGENTS_POOL)
-                async with httpx_module.AsyncClient(timeout=6, verify=False) as client:
+                async with httpx_module.AsyncClient(timeout=6) as client:
                     resp = await client.get("https://www.baidu.com/s", params=params, headers=headers)
                     resp_text = resp.text
 
@@ -197,7 +198,7 @@ async def search(request: SearchRequest, raw_request: Request):
             resp_text = ""
             if curl_cffi_installed:
                 try:
-                    async with AsyncSession(impersonate="chrome120", verify=False, timeout=15) as client:
+                    async with AsyncSession(impersonate="chrome120", timeout=15) as client:
                         resp = await client.get("https://www.bing.com/search", params=params, headers=headers)
                         resp_text = resp.text
                 except Exception as cf_e:
@@ -205,7 +206,7 @@ async def search(request: SearchRequest, raw_request: Request):
 
             if not resp_text and httpx_module:
                 headers["User-Agent"] = random.choice(USER_AGENTS_POOL)
-                async with httpx_module.AsyncClient(timeout=10, verify=False) as client:
+                async with httpx_module.AsyncClient(timeout=10) as client:
                     resp = await client.get("https://www.bing.com/search", params=params, headers=headers)
                     resp_text = resp.text
 
