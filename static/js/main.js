@@ -1,6 +1,53 @@
 // 全局标记：服务器是否配置了默认 API Key
 window._hasDefaultKey = false;
 
+// --- Auth 认证逻辑 ---
+let authToken = localStorage.getItem('office_auth_token');
+let authUsername = localStorage.getItem('office_auth_username');
+let isLoginMode = true;
+
+// 拦截原生 fetch 以注入 Token
+const originalFetch = window.fetch;
+window.fetch = async function () {
+    let [resource, config] = arguments;
+    if (!config) config = {};
+    if (!config.headers) config.headers = {};
+    if (authToken) {
+        config.headers['Authorization'] = `Bearer ${authToken}`;
+    }
+    return originalFetch(resource, config);
+};
+
+function redirectToLogin() {
+    window.location.href = 'login.html';
+}
+
+function doLogout() {
+    authToken = null;
+    authUsername = null;
+    localStorage.removeItem('office_auth_token');
+    localStorage.removeItem('office_auth_username');
+    redirectToLogin();
+}
+
+function updateAuthUI() {
+    const authSection = document.getElementById('auth-section');
+    if (!authSection) return;
+    if (authToken && authUsername) {
+        authSection.innerHTML = `
+            <div style="display:flex; justify-content:space-between; align-items:center; padding: 0.5rem 0;">
+                <span style="color:var(--text-muted); font-size: 0.95rem; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"><i data-lucide="user" style="width:16px;height:16px;vertical-align:text-bottom; margin-right:4px;"></i>${authUsername}</span>
+                <button onclick="doLogout()" style="background:transparent; border:none; color:#f87171; cursor:pointer; padding:4px;" title="退出登录"><i data-lucide="log-out" style="width:18px;height:18px;"></i></button>
+            </div>
+        `;
+    } else {
+        authSection.innerHTML = `
+            <button onclick="redirectToLogin()" class="primary-btn" style="width: 100%; border-radius: 0.5rem; padding: 0.6rem; font-size:1.1rem;"><i data-lucide="log-in" style="width:18px;height:18px;"></i> 登录 / 注册</button>
+        `;
+    }
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+}
+
 // 安全解析 JSON 响应，避免空响应导致 "Unexpected end of JSON input"
 async function safeJson(response) {
     const text = await response.text();
@@ -66,8 +113,16 @@ function toggleSidebar() {
 // Initialize App (use 'load' to ensure all deferred scripts are ready)
 window.addEventListener('load', async () => {
     if (typeof lucide !== 'undefined') lucide.createIcons();
+    updateAuthUI();
     renderSidebar();
     await loadSettings();
+
+    // 如果没有 Token，则自动弹窗并进入只读 / 无权限状态
+    if (!authToken) {
+        redirectToLogin();
+        return;
+    }
+
     loadPage('home'); // Default page
 });
 

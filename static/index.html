@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Office AI Mate</title>
+    <title>AI办公助手</title>
     <link rel="stylesheet" href="css/style.css?v=2.4">
     <!-- Lucide Icons (BootCDN 国内镜像) -->
     <script src="https://cdn.bootcdn.net/ajax/libs/lucide/0.344.0/lucide.min.js" defer></script>
@@ -26,14 +26,19 @@
             <div class="brand">
                 <span class="logo-icon"></span>
                 <div class="brand-text">
-                    <h1>Office AI Mate</h1>
-                    <span class="version">v2.0 · 昨夜提灯看雪 </span>
+                    <h1>AI办公助手</h1>
+                    <span class="version">v2.0 · Cyrus </span>
                 </div>
             </div>
 
             <nav id="nav-menu">
                 <!-- Navigation items will be injected by JS -->
             </nav>
+
+            <div class="auth-section" id="auth-section"
+                style="margin-top:auto; margin-bottom: 0.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1rem; padding-bottom: 0;">
+                <!-- Login info injected by JS -->
+            </div>
 
             <div class="settings-trigger">
                 <button id="settings-btn" onclick="toggleSettings()">
@@ -61,6 +66,7 @@
             </div>
         </main>
     </div>
+
 
     <!-- Settings Modal -->
     <div id="settings-modal" class="modal hidden">
@@ -98,7 +104,7 @@
         </div>
     </div>
 
-    <script src="js/main.js?v=2.0"></script>
+    <script src="js/main.js?v=2.1"></script>
 </body>
 
 </html>

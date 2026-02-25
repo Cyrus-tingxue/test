@@ -6,21 +6,19 @@ services:
     environment:
       - DEFAULT_PROVIDER=OpenRouter
       - DEFAULT_MODEL=arcee-ai/trinity-large-preview:free
-      - DEFAULT_API_KEY=
+      - DEFAULT_API_KEY="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"
     volumes:
-      - app_data:/app/data
+      - ./data:/app/data
 
   nginx:
-    image: nginx:alpine
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
     container_name: office-ai-mate-nginx
     restart: unless-stopped
     ports:
       - "8000:80"
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./static:/usr/share/nginx/html:ro
     depends_on:
       - fastapi
-
-volumes:
-  app_data:

@@ -43,7 +43,7 @@ def scan_qq_logs():
                     "mtime": datetime.fromtimestamp(stats.st_mtime).strftime('%Y-%m-%d %H:%M:%S')
                 })
                 count += 1
-        except:
+        except Exception:
             continue
             
     # Sort by modification time (newest first)
